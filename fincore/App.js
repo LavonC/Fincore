@@ -1,11 +1,18 @@
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LoginPage from "./screens/login";
 import appopen from "./screens/appopen";
 import SignupScreen from "./screens/signup";
+import DashboardScreen from "./screens/dashboard/DashboardScreen";
+import FinancialAdvisorScreen from "./screens/dashboard/FinancialAdvisorScreen";
+import StocksScreen from "./screens/dashboard/StocksScreen";
+import TaxFilingScreen from "./screens/dashboard/TaxFilingScreen";
+import MainTabNavigator from "./screens/MainTabNavigator";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
 export default function App() {
   return (
@@ -24,6 +31,11 @@ export default function App() {
         <Stack.Screen
           name="AppOpen"
           component={appopen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MainApp"
+          component={MainTabNavigator}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

@@ -87,7 +87,9 @@ export default function LoginPage({ navigation }) {
             }
 
             // If login successful, navigate to AppOpen
-            navigation.navigate('AppOpen');
+
+            // Reset navigation stack and go to MainApp
+            navigation.replace('MainApp');
           } catch (error) {
             setError(error.message || 'Error logging in');
           } finally {

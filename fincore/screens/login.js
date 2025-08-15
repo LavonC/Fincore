@@ -1,9 +1,31 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert,
+  ActivityIndicator 
+} from "react-native";
+import API_URL from '../config';
 
-export default function LoginPage() {
+export default function LoginPage({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Function to validate email format
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Simulated user database (replace with your actual authentication system)
+  const registeredUsers = [
+    { email: 'test@example.com', password: 'password123' }
+  ];
 
   return (
     <View style={styles.container}>
@@ -27,26 +49,66 @@ export default function LoginPage() {
         style={styles.input}
       />
 
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
       <TouchableOpacity
-        style={styles.button}
-        onPress={() => console.log("Email:", email, "Password:", password)}
+        style={[styles.button, loading && styles.buttonDisabled]}
+        disabled={loading}
+        onPress={async () => {
+          try {
+            setError("");
+            setLoading(true);
+
+            // Check if email and password are provided
+            if (!email || !password) {
+              setError("Please enter both email and password");
+              return;
+            }
+
+            // Validate email format
+            if (!isValidEmail(email)) {
+              setError("Please enter a valid email address");
+              return;
+            }
+
+            // Send login request
+            const response = await fetch(`${API_URL}/auth/login`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.error || 'Login failed');
+            }
+
+            // If login successful, navigate to AppOpen
+            navigation.navigate('AppOpen');
+          } catch (error) {
+            setError(error.message || 'Error logging in');
+          } finally {
+            setLoading(false);
+          }
+        }}
       >
-        <Text style={styles.buttonText}>Sign In</Text>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign In</Text>
+        )}
       </TouchableOpacity>
 
-      <Text style={styles.signupText}
-
-      
-    onPress={() => {
-      navigation.navigate('AppOpen');
-      console.log("Navigate to AppOpen page");
-    }}>
-          
-        Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
-      
-   
-   
-  </Text>
+      <TouchableOpacity 
+        onPress={() => navigation.navigate('Signup')}
+      >
+        <Text style={styles.signupText}>
+          Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
+        </Text>
+      </TouchableOpacity>
         
     
 
@@ -96,5 +158,11 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     color: "#3b82f6", // blue-500
+  },
+  errorText: {
+    color: "#dc2626", // red-600
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: "center",
   },
 });

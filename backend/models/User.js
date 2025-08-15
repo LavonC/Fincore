@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 // Initialize MySQL Database Tables
-sequelize.sync({ force: true }).then(() => {
+sequelize.sync({ force: false }).then(() => {
   console.log('User table created successfully!');
 }).catch((error) => {
   console.error('Unable to create table : ', error);

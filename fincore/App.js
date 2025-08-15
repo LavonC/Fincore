@@ -18,7 +18,7 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-     <Stack.Navigator initialRouteName="CandleCloseChart">
+     <Stack.Navigator initialRouteName="MainApp">
   <Stack.Screen
     name="Login"
     component={LoginPage}

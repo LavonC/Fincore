@@ -22,7 +22,6 @@ export default function CandleCloseChart() {
       const data = await res.json();
 
       if (Array.isArray(data) && data.length > 0) {
-        // Format labels
         const labels = data.map(item => {
           const date = new Date(item[0]);
           return `${date.getDate()}/${date.getMonth() + 1}`; 
@@ -51,7 +50,6 @@ return (
     <ScrollView style={styles.container}>
         <Text style={styles.title}>Stock Candle Close Chart</Text>
 
-        {/* Card-like controls */}
         <View style={styles.card}>
             <Text style={styles.label}>Enter Company Stock Number</Text>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
@@ -64,7 +62,7 @@ return (
                             padding: 10,
                             backgroundColor: "#fff",
                         }}
-                        placeholder="e.g. 500325"
+                        placeholder="e.g. 50089325"
                         value={company}
                         onChangeText={setCompany}
                         keyboardType="default"
@@ -72,7 +70,7 @@ return (
                 </View>
                 <Button
                     title="Search"
-                    onPress={fetchData}
+               
                     color="#007AFF"
                 />
             </View>
@@ -125,8 +123,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 10, backgroundColor: "#f0f3f7" },
   title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginVertical: 15 },
   card: { backgroundColor: "#fff", padding: 15, borderRadius: 12, marginBottom: 20, elevation: 3 },
-  label: { marginVertical: 10, fontWeight: "bold", color: "#333" },
-  picker: { height: 50, width: "100%" },
+  label: { marginVertical: 5, fontWeight: "bold", color: "#333" },
+  picker: { height: 60, width: "100%" },
   chartCard: { backgroundColor: "#fff", padding: 15, borderRadius: 12, elevation: 3 },
   chartTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10, textAlign: "center" },
 });

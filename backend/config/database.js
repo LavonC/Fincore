@@ -3,7 +3,7 @@ require('dotenv').config();
 
 // MySQL database configuration
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'dbms_project',
+  process.env.DB_NAME || 'DBMS',
   process.env.DB_USER || 'root',
   process.env.DB_PASSWORD || '',
   {

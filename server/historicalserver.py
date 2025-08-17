@@ -4,15 +4,21 @@ import pyotp
 from logzero import logger
 from flask_cors import CORS
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 app = Flask(__name__)
-CORS(app) 
+CORS(app)
 
 # ---- Angel Smart API Credentials ----
-api_key = "5umHYhQD"
-username = "AAAV325665"
-pwd = "1546"
-token_secret = "F4REUXURTZW7VFMTRHHKWNVTQY" 
+api_key = os.getenv("API_KEY")
+username = os.getenv("USERNAME")
+pwd = os.getenv("PASSWORD")
+token_secret = os.getenv("TOKEN_SECRET")
+
 
 COMPANY_TOKENS = {
     "RELIANCE": "2885",

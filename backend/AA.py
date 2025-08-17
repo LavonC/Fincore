@@ -138,6 +138,7 @@ def create_session(access_token, req_id):
 
 	response = requests.request("POST", url, json=payload, headers=headers)
 	session_id = response.json()['id']
+	return session_id
 
 def get_session_data(access_token, session_id):
 	url = "https://fiu-sandbox.setu.co/v2/sessions/" + session_id

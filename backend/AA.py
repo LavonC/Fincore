@@ -152,7 +152,4 @@ def get_session_data(access_token, session_id):
 
 
 if __name__ == '__main__':
-	phone_number = input("Enter your phone number: ")
-	access_token = get_token()
-	create_consent(access_token, phone_number)
 	app.run(port=5000)

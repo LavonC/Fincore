@@ -31,22 +31,26 @@ def createConsent():
 @app.route('/consentCheck', methods=['POST'])
 def consentCheck():
 	if request.method == 'POST':
-		phone_number = request.json['consent_id']
+		print(request.json)
+		phone_number = request.json['consentId']
 		access_token = get_token()
-		sessionId = get_consent_status(access_token, phone_number)
-		return jsonify({"sessionId": sessionId }), 200
+		response = get_consent_status(access_token, phone_number)
+		return jsonify({"status": response['status']}), 200
 	else:
 		return (400)
 
 @app.route('/sessionCheck', methods=['POST'])
 def sessionCheck():
 	if request.method == 'POST':
-		session_id = request.json['session_id']
+		consent_id = request.json['consentId']
 		access_token = get_token()
-		response = get_session_data(access_token, session_id)
+		response = create_session(access_token, consent_id)
+		response = response.json()
 		try:
 			if response['status'] == 'ACTIVE':
-				return jsonify({"status": "ACTIVE"}), 200
+				return jsonify({"status": "ACTIVE", "sessionId": response['id']}), 200
+			else :
+				return jsonify({"sessionId": response['id']})
 		except Exception as e:
 			return jsonify({"status": "PENDING"}), 200
 	else:
@@ -55,10 +59,10 @@ def sessionCheck():
 @app.route('/getTransactions', methods=['POST'])
 def getTransactions():
 	if request.method == 'POST':
-		session_id = request.json['session_id']
+		session_id = request.json['sessionId']
 		access_token = get_token()
 		response = get_session_data(access_token, session_id)
-		return jsonify({response['fip']['accounts'][0]['data']['account']['transactions']['transaction']}), 200
+		return jsonify(response['fip']['accounts'][0]['data']['account']['transactions']['transaction']), 200
 		
 	else:
 		return (400)
@@ -117,7 +121,7 @@ def get_consent_status(access_token, req_id):
 		"x-product-instance-id": PRODUCT_INSTANCE_ID
 	}
 	response = requests.request("GET", url, headers=headers, params=querystring)
-	return response.json()['status']
+	return response.json()
 
 def create_session(access_token, req_id):
 	url = "https://fiu-sandbox.setu.co/v2/sessions"
@@ -137,8 +141,8 @@ def create_session(access_token, req_id):
 	}
 
 	response = requests.request("POST", url, json=payload, headers=headers)
-	session_id = response.json()['id']
-	return session_id
+	print(response.text)
+	return response
 
 def get_session_data(access_token, session_id):
 	url = "https://fiu-sandbox.setu.co/v2/sessions/" + session_id

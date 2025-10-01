@@ -1,10 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import axios from 'axios';
-import { TextInput, Button } from 'react-native-paper';
+import { TextInput } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
 import { useState } from 'react';
 import { ActivityIndicator } from 'react-native';
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const DashboardScreen = () => {
   const [step, setStep] = useState(1); 
@@ -13,8 +17,8 @@ const DashboardScreen = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  let consent_id;
-  let session_id;
+const [consent_id, setConsentId] = useState(null);
+const [session_id, setSessionId] = useState(null);
   const handlePhoneNumberSubmit = async () => {
     if (!phoneNumber) {
       alert('Please enter a valid phone number.');
@@ -23,9 +27,9 @@ const DashboardScreen = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('helpful-vastly-shark.ngrok-free.app/createConsent', { "PhoneNumber": phoneNumber });
+      const response = await axios.post('https://helpful-vastly-shark.ngrok-free.app/createConsent', { "PhoneNumber": phoneNumber });
       setConsentUrl(response.data.consentUrl);
-      consent_id = response.data.consentId;
+      setConsentId(response.data.consentId);
       setLoading(false);
       setStep(2); 
     } catch (error) {
@@ -35,32 +39,26 @@ const DashboardScreen = () => {
   };
 
   const handleConsentApproval = async () => {
-    while(1){
-      const response = await axios.post('helpful-vastly-shark.ngrok-free.app/consentCheck', {"consentId": consent_id});
+      await sleep(50000);
+      const response = await axios.post('https://helpful-vastly-shark.ngrok-free.app/consentCheck', {"consentId": consent_id});
       if(response.data.status == 'ACTIVE'){
-        setStep(3);
-        while(1){
-          const sessResponse = await axios.post('helpful-vastly-shark.ngrok-free.app/sessionCheck', {"session_id": session_id});
-          if(sessResponse.data.status == 'ACTIVE'){
-            session_id = sessResponse.data.sessionId;
-            fetchTransactionData();
-            return;
-          }
-        }
+        const sessResponse = await axios.post('https://helpful-vastly-shark.ngrok-free.app/sessionCheck', {"consentId": consent_id});
+        setSessionId(sessResponse.data.sessionId);
+        fetchTransactionData();
       }
-    }
   };
 
   const fetchTransactionData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('helpful-vastly-shark.ngrok-free.app/getTransactions', { "sessionId": session_id});
+      const response = await axios.post('https://helpful-vastly-shark.ngrok-free.app/getTransactions', { "sessionId": session_id});
       setTransactions(response.data); 
       setLoading(false);
     } catch (error) {
       setLoading(false);
       setError(error.message);
     }
+    setStep(3);
   };
 
   if (loading) {

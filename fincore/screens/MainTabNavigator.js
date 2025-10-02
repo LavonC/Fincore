@@ -5,7 +5,7 @@ import DashboardScreen from './dashboard/DashboardScreen';
 import FinancialAdvisorScreen from './dashboard/FinancialAdvisorScreen';
 import StocksScreen from './dashboard/StocksScreen';
 import TaxFilingScreen from './dashboard/TaxFilingScreen';
-import CandleCloseChart from './historicalplot';
+import CandleCloseChart from './Stocks/CandleCloseChart';
 
 
 const Tab = createBottomTabNavigator();

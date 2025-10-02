@@ -4,13 +4,14 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LoginPage from "./screens/login";
 import appopen from "./screens/appopen";
-import CandleCloseChart from "./screens/historicalplot";
+import CandleCloseChart from "./screens/Stocks/CandleCloseChart";
 import SignupScreen from "./screens/signup";
 import DashboardScreen from "./screens/dashboard/DashboardScreen";
 import FinancialAdvisorScreen from "./screens/dashboard/FinancialAdvisorScreen";
 import StocksScreen from "./screens/dashboard/StocksScreen";
 import TaxFilingScreen from "./screens/dashboard/TaxFilingScreen";
 import MainTabNavigator from "./screens/MainTabNavigator";
+import StockHome from "./screens/Stocks/stockhome";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -18,7 +19,7 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-     <Stack.Navigator initialRouteName="MainApp">
+     <Stack.Navigator initialRouteName="StockHome">
   <Stack.Screen
     name="Login"
     component={LoginPage}
@@ -29,6 +30,7 @@ export default function App() {
     component={SignupScreen}
     options={{ headerShown: false }}
   />
+   
   <Stack.Screen
     name="AppOpen"
     component={appopen}
@@ -44,7 +46,15 @@ export default function App() {
     component={MainTabNavigator}
     options={{ headerShown: false }}
   />
-</Stack.Navigator>
+  
+
+  <Stack.Screen
+    name="StockHome"
+    component={StockHome}
+    options={{ headerShown: false }}
+    />
+ 
+    </Stack.Navigator>
 
       <StatusBar style="auto" />
     </NavigationContainer>

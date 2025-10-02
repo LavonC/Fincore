@@ -1,18 +1,15 @@
-from flask import Flask, request, jsonify
-import numpy as np
+from SmartApi import SmartConnect
+import pyotp
+import os
 
-app = Flask(__name__)
+api_key = "5umHYhQD"
+username = "AAAV325665"
+pwd = "1546"
+token_secret = "F4REUXURTZW7VFMTRHHKWNVTQY"
 
+totp = pyotp.TOTP(token_secret).now()
+print("Generated OTP:", totp)
 
-def dummy_model(features):
-    return np.sum(features)
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json()
-    features = data.get('features', [])
-    prediction = dummy_model(features)
-    return jsonify({'prediction': prediction})
-
-if __name__ == '__main__':
-    app.run(debug=True)
+smartApi = SmartConnect(api_key)
+data = smartApi.generateSession(username, pwd, totp)
+print("Login Response:", data)

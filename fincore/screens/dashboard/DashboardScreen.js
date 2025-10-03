@@ -17,8 +17,8 @@ const DashboardScreen = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-const [consent_id, setConsentId] = useState(null);
-const [session_id, setSessionId] = useState(null);
+const [consent_id, setConsentId] = useState('');
+const [session_id, setSessionId] = useState('');
   const handlePhoneNumberSubmit = async () => {
     if (!phoneNumber) {
       alert('Please enter a valid phone number.');

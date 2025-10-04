@@ -3,11 +3,25 @@
 // Create these as separate files or keep them here temporarily
 // ==========================================
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, BackHandler } from 'react-native';
 
 // Dashboard Screen
 export const DashboardScreen = ({ navigation }) => {
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Explore');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -15,7 +29,7 @@ export const DashboardScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Track your financial health at a glance</Text>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Explore')}
         >
           <Text style={styles.backButtonText}>← Back to Explore</Text>
         </TouchableOpacity>
@@ -26,6 +40,20 @@ export const DashboardScreen = ({ navigation }) => {
 
 // Stocks Screen
 export const StocksScreen = ({ navigation }) => {
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Explore');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -33,7 +61,7 @@ export const StocksScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Manage your investments and portfolio</Text>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Explore')}
         >
           <Text style={styles.backButtonText}>← Back to Explore</Text>
         </TouchableOpacity>
@@ -44,6 +72,20 @@ export const StocksScreen = ({ navigation }) => {
 
 // Advisor Connect Screen
 export const AdvisorConnectScreen = ({ navigation }) => {
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Explore');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -51,7 +93,7 @@ export const AdvisorConnectScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Get personalized financial advice</Text>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Explore')}
         >
           <Text style={styles.backButtonText}>← Back to Explore</Text>
         </TouchableOpacity>
@@ -62,6 +104,20 @@ export const AdvisorConnectScreen = ({ navigation }) => {
 
 // Tax Center Screen
 export const TaxCenterScreen = ({ navigation }) => {
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Explore');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -69,7 +125,7 @@ export const TaxCenterScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Simplify your tax filing process</Text>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Explore')}
         >
           <Text style={styles.backButtonText}>← Back to Explore</Text>
         </TouchableOpacity>

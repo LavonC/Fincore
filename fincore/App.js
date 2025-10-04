@@ -1,15 +1,13 @@
-// ==========================================
-// APP.JS - NAVIGATION SETUP
-// ==========================================
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+// import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import your screens
 import LoginPage from './screens/login';
 import SignupScreen from './screens/signup';
 import ExplorePage from './screens/explorepage';
+import ConsentScreen from './screens/consentscreen';
 import { 
   DashboardScreen, 
   StocksScreen, 
@@ -35,6 +33,18 @@ export default function App() {
         
         {/* Main App Screens */}
         <Stack.Screen name="Explore" component={ExplorePage} />
+        
+        {/* Consent Screen - Modal style */}
+        <Stack.Screen 
+          name="Consent" 
+          component={ConsentScreen}
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        
+        {/* Feature Screens */}
         <Stack.Screen 
           name="Dashboard" 
           component={DashboardScreen}
@@ -63,6 +73,8 @@ export default function App() {
 // ==========================================
 // REQUIRED PACKAGES
 // ==========================================
-// Install these packages if you haven't already:
+// Install these packages:
 // npm install @react-navigation/native @react-navigation/native-stack
 // npm install react-native-screens react-native-safe-area-context
+// npm install @react-native-community/datetimepicker
+// npm install @react-native-async-storage/async-storage

@@ -79,7 +79,34 @@ const ExplorePage = ({ navigation }) => {
   ];
 
   const handleCardPress = (screen) => {
-    navigation.navigate(screen);
+    // Check if user is trying to access Dashboard
+    if (screen === 'Dashboard') {
+      // Check consent status (you can implement AsyncStorage check here)
+      checkConsentAndNavigate();
+    } else {
+      navigation.navigate(screen);
+    }
+  };
+
+  const checkConsentAndNavigate = async () => {
+    try {
+      // Example: Check AsyncStorage for consent
+      // const consentGiven = await AsyncStorage.getItem('consentGiven');
+      
+      // For now, always show consent screen (remove this later)
+      // If consent not given, show consent screen
+      navigation.navigate('Consent');
+      
+      // After implementing AsyncStorage, use this:
+      // if (consentGiven === 'true') {
+      //   navigation.navigate('Dashboard');
+      // } else {
+      //   navigation.navigate('Consent');
+      // }
+    } catch (error) {
+      console.error('Error checking consent:', error);
+      navigation.navigate('Consent');
+    }
   };
 
   return (

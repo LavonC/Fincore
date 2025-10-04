@@ -6,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const { Sequelize, DataTypes, Model } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const twilio = require('twilio');
 require('dotenv').config();
 
 const app = express();
@@ -93,6 +95,107 @@ User.init({
 });
 
 // ==========================================
+// OTP STORAGE (In-memory for simplicity)
+// ==========================================
+
+const otpStore = new Map();
+
+// ==========================================
+// EMAIL CONFIGURATION
+// ==========================================
+
+// Configure nodemailer with Gmail
+// You'll need to set up App Password in Gmail settings
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, // Your Gmail address
+    pass: process.env.EMAIL_PASSWORD, // Your Gmail App Password
+  }
+});
+
+// ==========================================
+// SMS CONFIGURATION (Twilio)
+// ==========================================
+
+// For free trial, you'll need to verify your phone number on Twilio
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+
+// ==========================================
+// OTP HELPER FUNCTIONS
+// ==========================================
+
+// Generate 6-digit OTP
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Send Email OTP
+async function sendEmailOTP(email, otp) {
+  try {
+    // If email credentials not configured, just log the OTP (for development)
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.log(`📧 EMAIL OTP for ${email}: ${otp}`);
+      console.log('⚠️  Email not sent (credentials not configured). Check console for OTP.');
+      return true;
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'FinCore - Email Verification OTP',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #00d4d4;">FinCore Email Verification</h2>
+          <p>Your verification code is:</p>
+          <h1 style="background: #f0f0f0; padding: 20px; text-align: center; letter-spacing: 5px; color: #1a1f2e;">
+            ${otp}
+          </h1>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you didn't request this code, please ignore this email.</p>
+        </div>
+      `
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    console.log(`✓ Email OTP sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error('✗ Error sending email OTP:', error.message);
+    // Log OTP to console for development
+    console.log(`📧 EMAIL OTP for ${email}: ${otp}`);
+    return true; // Return true anyway for development
+  }
+}
+
+// Send Phone OTP via SMS
+async function sendPhoneOTP(phone, otp) {
+  try {
+    // If Twilio not configured, just log the OTP (for development)
+    if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
+      console.log(`📱 SMS OTP for ${phone}: ${otp}`);
+      console.log('⚠️  SMS not sent (Twilio not configured). Check console for OTP.');
+      return true;
+    }
+
+    await twilioClient.messages.create({
+      body: `Your FinCore verification code is: ${otp}. Valid for 10 minutes.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: phone
+    });
+    console.log(`✓ SMS OTP sent to ${phone}`);
+    return true;
+  } catch (error) {
+    console.error('✗ Error sending SMS OTP:', error.message);
+    // Log OTP to console for development
+    console.log(`📱 SMS OTP for ${phone}: ${otp}`);
+    return true; // Return true anyway for development
+  }
+}
+
+// ==========================================
 // MIDDLEWARE
 // ==========================================
 
@@ -119,6 +222,84 @@ app.get('/api/test', (req, res) => {
     message: 'Backend server is working!',
     timestamp: new Date().toISOString()
   });
+});
+
+// Send OTP route
+app.post('/api/auth/send-otp', async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+
+    if (!email || !phone) {
+      return res.status(400).json({ error: 'Email and phone are required' });
+    }
+
+    // Generate OTPs
+    const emailOTP = generateOTP();
+    const phoneOTP = generateOTP();
+
+    // Store OTPs with expiration (10 minutes)
+    const otpData = {
+      emailOTP,
+      phoneOTP,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+    };
+    
+    otpStore.set(email, otpData);
+
+    // Send OTPs
+    await Promise.all([
+      sendEmailOTP(email, emailOTP),
+      sendPhoneOTP(phone, phoneOTP)
+    ]);
+
+    console.log(`✓ OTPs sent to ${email} and ${phone}`);
+    res.json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('✗ Send OTP error:', error.message);
+    res.status(500).json({ error: 'Error sending OTP' });
+  }
+});
+
+// Verify OTP route
+app.post('/api/auth/verify-otp', async (req, res) => {
+  try {
+    const { email, phone, emailOTP, phoneOTP } = req.body;
+
+    if (!email || !emailOTP || !phoneOTP) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Get stored OTP data
+    const storedData = otpStore.get(email);
+
+    if (!storedData) {
+      return res.status(400).json({ error: 'OTP not found or expired. Please request a new one.' });
+    }
+
+    // Check if OTP expired
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
+    }
+
+    // Verify OTPs
+    if (storedData.emailOTP !== emailOTP) {
+      return res.status(400).json({ error: 'Invalid email OTP' });
+    }
+
+    if (storedData.phoneOTP !== phoneOTP) {
+      return res.status(400).json({ error: 'Invalid phone OTP' });
+    }
+
+    // OTP verified successfully - remove from store
+    otpStore.delete(email);
+    
+    console.log(`✓ OTP verified for ${email}`);
+    res.json({ message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('✗ Verify OTP error:', error.message);
+    res.status(500).json({ error: 'Error verifying OTP' });
+  }
 });
 
 // Signup route
@@ -283,6 +464,8 @@ const startServer = async () => {
       console.log('='.repeat(50));
       console.log('Available endpoints:');
       console.log(`  GET  /api/test`);
+      console.log(`  POST /api/auth/send-otp`);
+      console.log(`  POST /api/auth/verify-otp`);
       console.log(`  POST /api/auth/signup`);
       console.log(`  POST /api/auth/login`);
       console.log(`  POST /api/auth/check-email`);

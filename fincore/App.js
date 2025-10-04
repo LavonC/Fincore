@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import your screens
 import LoginPage from './screens/login';
 import SignupScreen from './screens/signup';
+import OTPVerificationScreen from './screens/OTPVerificationScreen';
 import ExplorePage from './screens/explorepage';
 import ConsentScreen from './screens/consentscreen';
 import { 
@@ -30,6 +31,7 @@ export default function App() {
         {/* Auth Screens */}
         <Stack.Screen name="Login" component={LoginPage} />
         <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
         
         {/* Main App Screens */}
         <Stack.Screen name="Explore" component={ExplorePage} />

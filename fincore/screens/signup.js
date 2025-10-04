@@ -95,24 +95,25 @@ const SignupScreen = ({ navigation }) => {
         return;
       }
 
-      // If all validations pass, proceed with signup
-      const response = await fetch(`${API_URL}/auth/signup`, {
+      // Send OTP to email and phone
+      const otpResponse = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, email, phone, password }),
+        body: JSON.stringify({ email, phone }),
       });
 
-      const data = await response.json();
+      const otpData = await otpResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Error signing up');
+      if (!otpResponse.ok) {
+        throw new Error(otpData.error || 'Error sending OTP');
       }
 
-      Alert.alert('Success', 'Account created successfully', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') }
-      ]);
+      // Navigate to OTP verification screen with user data
+      navigation.navigate('OTPVerification', {
+        userData: { username, email, phone, password }
+      });
     } catch (error) {
       setError(error.message || 'Error signing up');
     } finally {

@@ -71,7 +71,8 @@ User.init({
   },
   phone: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    unique: true
   },
   password: {
     type: DataTypes.STRING,
@@ -142,6 +143,13 @@ app.post('/api/auth/signup', async (req, res) => {
     
     if (existingUser) {
       return res.status(400).json({ error: 'This email is already registered' });
+    }
+
+    // Check if phone number already exists
+    const existingPhone = await User.findOne({ where: { phone } });
+    
+    if (existingPhone) {
+      return res.status(400).json({ error: 'This phone number is already registered' });
     }
 
     // Create new user

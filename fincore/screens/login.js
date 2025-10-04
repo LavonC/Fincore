@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   BackHandler,
+  Image,
 } from "react-native";
 import API_URL from '../config';
 
@@ -74,9 +75,12 @@ export default function LoginPage({ navigation }) {
         throw new Error(data.error || 'Login failed');
       }
       
-      // If login successful, navigate to AppOpen
-      // Reset navigation stack and go to MainApp
-      navigation.replace('MainApp');
+      // If login successful, navigate to Explore page
+      // Reset navigation stack to prevent going back to login
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Explore' }],
+      });
     } catch (error) {
       setError(error.message || 'Error logging in');
     } finally {
@@ -94,14 +98,13 @@ export default function LoginPage({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo and Title */}
+          {/* Logo */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoIcon}>📊</Text>
-              </View>
-            </View>
-            <Text style={styles.title}>Fincore</Text>
+            <Image 
+              source={require('../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Form */}
@@ -181,27 +184,11 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 0,
   },
-  logoContainer: {
-    marginBottom: 16,
-  },
-  logo: {
-    width: 64,
-    height: 64,
-    backgroundColor: '#00d4d4',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoIcon: {
-    fontSize: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#ffffff',
-    letterSpacing: 0.5,
+  logoImage: {
+    width: 240,
+    height: 240,
   },
   form: {
     width: '100%',

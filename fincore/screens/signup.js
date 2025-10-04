@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   ScrollView,
   BackHandler,
+  Image,
 } from 'react-native';
 import API_URL from '../config';
 
@@ -129,14 +130,13 @@ const SignupScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo and Title */}
+          {/* Logo - Custom Image */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoIcon}>📊</Text>
-              </View>
-            </View>
-            <Text style={styles.title}>Fincore</Text>
+            <Image 
+              source={require('../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Form */}
@@ -258,27 +258,12 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: -10,
+    marginTop: -50
   },
-  logoContainer: {
-    marginBottom: 8,
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#00d4d4',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoIcon: {
-    fontSize: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#ffffff',
-    letterSpacing: 0.5,
+  logoImage: {
+    width: 200,
+    height: 200,
   },
   form: {
     flex: 1,

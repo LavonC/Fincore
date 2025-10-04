@@ -1,45 +1,68 @@
-import { StatusBar } from "expo-status-bar";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import LoginPage from "./screens/login";
-import appopen from "./screens/appopen";
-import SignupScreen from "./screens/signup";
-import DashboardScreen from "./screens/dashboard/DashboardScreen";
-import FinancialAdvisorScreen from "./screens/dashboard/FinancialAdvisorScreen";
-import StocksScreen from "./screens/dashboard/StocksScreen";
-import TaxFilingScreen from "./screens/dashboard/TaxFilingScreen";
-import MainTabNavigator from "./screens/MainTabNavigator";
+// ==========================================
+// APP.JS - NAVIGATION SETUP
+// ==========================================
+
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+// Import your screens
+import LoginPage from './screens/login';
+import SignupScreen from './screens/signup';
+import ExplorePage from './screens/explorepage';
+import { 
+  DashboardScreen, 
+  StocksScreen, 
+  AdvisorConnectScreen, 
+  TaxCenterScreen 
+} from './screens/placeholderscreens';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Login"
-          component={LoginPage}
-          options={{ headerShown: false }}
+      <Stack.Navigator
+        initialRouteName="Login"
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
+        {/* Auth Screens */}
+        <Stack.Screen name="Login" component={LoginPage} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
+        
+        {/* Main App Screens */}
+        <Stack.Screen name="Explore" component={ExplorePage} />
+        <Stack.Screen 
+          name="Dashboard" 
+          component={DashboardScreen}
+          options={{ headerShown: true, title: 'Dashboard' }}
         />
-        <Stack.Screen
-          name="Signup"
-          component={SignupScreen}
-          options={{ headerShown: false }}
+        <Stack.Screen 
+          name="Stocks" 
+          component={StocksScreen}
+          options={{ headerShown: true, title: 'Stocks' }}
         />
-        <Stack.Screen
-          name="AppOpen"
-          component={appopen}
-          options={{ headerShown: false }}
+        <Stack.Screen 
+          name="AdvisorConnect" 
+          component={AdvisorConnectScreen}
+          options={{ headerShown: true, title: 'Advisor Connect' }}
         />
-        <Stack.Screen
-          name="MainApp"
-          component={MainTabNavigator}
-          options={{ headerShown: false }}
+        <Stack.Screen 
+          name="TaxCenter" 
+          component={TaxCenterScreen}
+          options={{ headerShown: true, title: 'Tax Center' }}
         />
       </Stack.Navigator>
-      <StatusBar style="auto" />
     </NavigationContainer>
   );
 }
+
+// ==========================================
+// REQUIRED PACKAGES
+// ==========================================
+// Install these packages if you haven't already:
+// npm install @react-navigation/native @react-navigation/native-stack
+// npm install react-native-screens react-native-safe-area-context

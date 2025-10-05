@@ -1,3 +1,7 @@
+// ==========================================
+// APP.JS - NAVIGATION SETUP WITH CONSENT CHECK
+// ==========================================
+
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,11 +10,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import your screens
 import LoginPage from './screens/login';
 import SignupScreen from './screens/signup';
-import OTPVerificationScreen from './screens/OTPVerificationScreen';
 import ExplorePage from './screens/explorepage';
 import ConsentScreen from './screens/consentscreen';
+import FinancialDashboard from './screens/financialdashboard';
+import TransactionsScreen from './screens/transactions';
+import AccountsScreen from './screens/accountsscreen';
 import { 
-  DashboardScreen, 
   StocksScreen, 
   AdvisorConnectScreen, 
   TaxCenterScreen 
@@ -31,7 +36,6 @@ export default function App() {
         {/* Auth Screens */}
         <Stack.Screen name="Login" component={LoginPage} />
         <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
         
         {/* Main App Screens */}
         <Stack.Screen name="Explore" component={ExplorePage} />
@@ -49,8 +53,15 @@ export default function App() {
         {/* Feature Screens */}
         <Stack.Screen 
           name="Dashboard" 
-          component={DashboardScreen}
-          options={{ headerShown: true, title: 'Dashboard' }}
+          component={FinancialDashboard}
+        />
+        <Stack.Screen 
+          name="Transactions" 
+          component={TransactionsScreen}
+        />
+        <Stack.Screen 
+          name="Accounts" 
+          component={AccountsScreen}
         />
         <Stack.Screen 
           name="Stocks" 
@@ -79,4 +90,4 @@ export default function App() {
 // npm install @react-navigation/native @react-navigation/native-stack
 // npm install react-native-screens react-native-safe-area-context
 // npm install @react-native-community/datetimepicker
-// npm install @react-native-async-storage/async-storage
+// npm install @react-native-async-storage/

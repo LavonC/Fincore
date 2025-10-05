@@ -6,38 +6,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, BackHandler } from 'react-native';
 
-// Dashboard Screen
-export const DashboardScreen = ({ navigation }) => {
-  useEffect(() => {
-    const backAction = () => {
-      navigation.navigate('Explore');
-      return true;
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
-    return () => backHandler.remove();
-  }, [navigation]);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>📊 Dashboard</Text>
-        <Text style={styles.subtitle}>Track your financial health at a glance</Text>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.navigate('Explore')}
-        >
-          <Text style={styles.backButtonText}>← Back to Explore</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-};
-
 // Stocks Screen
 export const StocksScreen = ({ navigation }) => {
   useEffect(() => {

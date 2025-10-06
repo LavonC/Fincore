@@ -1,0 +1,4 @@
+[E 250817 13:26:24 holding:94] Error in get_holdings: 'SmartConnect' object has no attribute 'getHolding'
+[E 250817 13:27:10 holding:94] Error in get_holdings: 'SmartConnect' object has no attribute 'getHolding'
+[E 250817 13:47:07 holding:160] Error in get_watchlist: 'SmartConnect' object has no attribute 'getWatchListNames'
+[E 250817 13:49:12 holding:184] Error in get_watchlist: Expecting value: line 1 column 1 (char 0)

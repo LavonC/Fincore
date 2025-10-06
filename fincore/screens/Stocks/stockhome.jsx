@@ -2,337 +2,268 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  TextInput,
 } from "react-native";
-import {
-  Search,
-  History,
-  Home,
-  Star,
-  Briefcase,
-  FileText,
-  Wallet,
-  AppWindow,
-  UserCircle,
-} from "lucide-react-native";
+import { ArrowLeft, Plus, Home, Search, Briefcase, User } from "lucide-react-native";
 import Papa from "papaparse";
-import { BarChart } from "lucide-react-native";
-import { TrendingUp } from "lucide-react-native";
 
-import { useNavigation } from "@react-navigation/native";
-
-
-const StockHome = ({navigation}) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResult, setSearchResult] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+const StockHome = ({ navigation }) => {
+  const [portfolioData, setPortfolioData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
+  const [activeTab, setActiveTab] = useState("Stocks");
+
   const [inSearchMode, setInSearchMode] = useState(false);
-  const [csvData, setCsvData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResult, setSearchResult] = useState([]);
+  const [activeScreen, setActiveScreen] = useState("Portfolio"); // Track active bottom nav screen
 
- 
   useEffect(() => {
-    const loadCSV = async () => {
-      try {
-        // 👇 replace with your Flask server's IP
-        const response = await fetch("http://192.168.1.2:5000/get_csv"); 
-        const text = await response.text();
-
-        const parsed = Papa.parse(text, { header: true });
-        setCsvData(parsed.data);
-
-        console.log("First 5 rows:", parsed.data.slice(0, 5));
-      } catch (err) {
-        console.error("Error fetching CSV:", err);
-      }
-    };
-
-    loadCSV();
+    fetchPortfolioData();
   }, []);
 
-
-
-  const showMessage = (text) => {
-    setMessage(text);
-    setTimeout(() => setMessage(null), 3000);
-  };
-const handleSearch = async (queryText) => {
-  if (!queryText) return;
-
-  setIsLoading(true);
-  setSearchResult(null);
-  setError(null);
-
-  try {
-    const lowerQuery = queryText.toLowerCase();
-    const matched = csvData.filter(
-      (item) =>
-        item["NAME OF COMPANY"]?.toLowerCase().includes(lowerQuery) ||
-        item["SYMBOL"]?.toLowerCase() === lowerQuery
-    );
-
-    if (matched.length > 0) {
-      const formatted = matched.slice(0, 10).map((item) => (
-        <TouchableOpacity
-          key={item["SYMBOL"]}
-          style={[
-            styles.resultBox,
-            {
-              marginBottom: 20,
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 4,
-              paddingVertical: 13,
-            },
-          ]}
-          onPress={() =>
-            navigation.navigate("CandleCloseChart", {
-              symbol: item["SYMBOL"],
-              company: item["NAME OF COMPANY"],
-            })
-          }
-        >
-          {/* Generic stock icon on the left */}
- <View
-    style={{
-      width: 34,
-      height: 34,
-      borderRadius: 20, // half of width/height to make it circular
-      backgroundColor: "#faf2f2ff", // light gray circle
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 12,
-    }}
-  >
-    <TrendingUp size={20} color="#555" />
-  </View>
-          {/* Symbol and company name */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16 }}>{item["NAME OF COMPANY"]}</Text>
-            <Text style={{  fontSize: 14,color: "#888" }}>{item["SYMBOL"]}</Text>
-            
-          </View>
-        </TouchableOpacity>
-      ));
-
-      // Save JSX list instead of string
-      setSearchResult(formatted);
-    } else {
-      setSearchResult(<Text>No matching company found.</Text>);
+  const fetchPortfolioData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("http://192.168.1.2:5000/get_csv");
+      if (!response.ok) throw new Error("Failed to fetch portfolio data");
+      const text = await response.text();
+      const parsed = Papa.parse(text, { header: true });
+      setPortfolioData(parsed.data || []);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching portfolio:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    setError("Error during search: " + err.message);
-  }
+  };
 
-  setIsLoading(false);
-};
+  const calculateTotalValue = () => {
+    return portfolioData.reduce((total, stock) => total + (parseFloat(stock.value) || 0), 0);
+  };
 
+  const formatCurrency = (amount) => {
+    return `₹${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
-  const exitSearchMode = () => {
+  const handleSearch = (query) => {
+    setSearchTerm(query);
+    if (!query) {
+      setSearchResult([]);
+      return;
+    }
+    const results = portfolioData.filter(
+      (stock) =>
+        stock["NAME OF COMPANY"]?.toLowerCase().includes(query.toLowerCase()) ||
+        stock["SYMBOL"]?.toLowerCase() === query.toLowerCase()
+    );
+    setSearchResult(results);
+  };
+
+  const filteredStocksByTab = portfolioData.filter(
+    (stock) => stock.TYPE?.toLowerCase() === activeTab.toLowerCase()
+  );
+
+  const handleNavigation = (screen) => {
+    setActiveScreen(screen);
     setInSearchMode(false);
     setSearchTerm("");
-    setSearchResult(null);
-    setError(null);
+    setSearchResult([]);
+    if (screen !== "Portfolio") {
+      navigation.navigate(screen);
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* ---------- NORMAL HOME PAGE ---------- */}
-      {!inSearchMode ? (
-        <>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.row}>
-              <AppWindow color="gray" />
-              <Text style={styles.headerText}>Products</Text>
-            </View>
-            <View style={styles.row}>
-              <TouchableOpacity
-                onPress={() => setInSearchMode(true)}
-                style={styles.iconBtn}
-              >
-                <Search color="gray" />
-              </TouchableOpacity>
-              <Wallet color="blue" />
-            </View>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (inSearchMode) {
+              setInSearchMode(false);
+              setSearchTerm("");
+              setSearchResult([]);
+            } else {
+              navigation.goBack();
+            }
+          }}
+        >
+          <ArrowLeft color="white" size={24} />
+        </TouchableOpacity>
 
-          <ScrollView style={styles.main}>
-            <Text style={styles.title}>Welcome to Stock App</Text>
-            <View style={styles.centerBox}>
-              <History size={32} color="gray" />
-              <Text style={{ color: "gray", marginTop: 5 }}>
-                Start searching to see stock details.
-              </Text>
-            </View>
-          </ScrollView>
+        {inSearchMode ? (
+          <TextInput
+            placeholder="Search company..."
+            placeholderTextColor="#cbd5e1"
+            value={searchTerm}
+            onChangeText={handleSearch}
+            style={[styles.searchInput, { flex: 1, marginLeft: 12 }]}
+          />
+        ) : (
+          <Text style={styles.headerTitle}>Portfolio</Text>
+        )}
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity onPress={() => showMessage("Home clicked!")}>
-              <View style={styles.footerBtn}>
-                <Home color="blue" />
-                <Text style={styles.footerTextActive}>Home</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => showMessage("Watchlist clicked!")}>
-              <View style={styles.footerBtn}>
-                <Star color="gray" />
-                <Text style={styles.footerText}>Watchlist</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => showMessage("Portfolio clicked!")}>
-              <View style={styles.footerBtn}>
-                <Briefcase color="gray" />
-                <Text style={styles.footerText}>Portfolio</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => showMessage("Orders clicked!")}>
-              <View style={styles.footerBtn}>
-                <FileText color="gray" />
-                <Text style={styles.footerText}>Orders</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => showMessage("Account clicked!")}>
-              <View style={styles.footerBtn}>
-                <UserCircle color="gray" />
-                <Text style={styles.footerText}>Account</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </>
+        {!inSearchMode && (
+          <TouchableOpacity>
+            <Plus color="white" size={24} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3b82f6" />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchPortfolioData}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        /* ---------- SEARCH PAGE ---------- */
-        <View style={{ flex: 1, backgroundColor: "white" }}>
-          {/* Search Bar (only visible in search mode) */}
-          <View style={styles.searchHeader}>
-            {/* Back button */}
-            <TouchableOpacity onPress={exitSearchMode} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 18 }}>←</Text>
-            </TouchableOpacity>
+        <ScrollView style={styles.content}>
+          {!inSearchMode && (
+            <View style={styles.profileSection}>
+              <Text style={styles.totalLabel}>Total Portfolio Value</Text>
+              <Text style={styles.totalValue}>{formatCurrency(calculateTotalValue())}</Text>
+            </View>
+          )}
 
-            {/* Search input */}
-            <TextInput
-              placeholder='Search "Recent IPOs"'
-              value={searchTerm}
-               onChangeText={(text) => {
-               setSearchTerm(text);      // update the text state
-               handleSearch(text);       // trigger search immediately
-           }}
-           
-              style={styles.searchInput}
-            />
+          {!inSearchMode && (
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === "Stocks" && styles.activeTab]}
+                onPress={() => setActiveTab("Stocks")}
+              >
+                <Text style={[styles.tabText, activeTab === "Stocks" && styles.activeTabText]}>
+                  Stocks
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === "Crypto" && styles.activeTab]}
+                onPress={() => setActiveTab("Crypto")}
+              >
+                <Text style={[styles.tabText, activeTab === "Crypto" && styles.activeTabText]}>
+                  Crypto
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-            {/* Search button */}
-            <TouchableOpacity
-              onPress={() => handleSearch(searchTerm)}
-              style={styles.searchBtn}
-            >
-              <Search size={18} color="white" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.stockList}>
+  {(inSearchMode ? searchResult : filteredStocksByTab).length > 0 ? (
+    (inSearchMode ? searchResult : filteredStocksByTab).map((stock, index) => (
+      <TouchableOpacity
+        key={index}
+        style={styles.stockItem}
+        onPress={() =>
+          navigation.navigate("CandleCloseChart", { 
+            stockSymbol: stock.SYMBOL, 
+            companyName: stock["NAME OF COMPANY"] 
+          })
+        }
+      >
+        <Text style={styles.stockName}>{stock["NAME OF COMPANY"]}</Text>
+        <Text style={styles.stockShares}>{stock.SYMBOL}</Text>
+      </TouchableOpacity>
+    ))
+  ) : (
+    <Text style={{ padding: 16, color: "white" }}>
+      {inSearchMode
+        ? searchTerm !== ""
+          ? "No matching company found"
+          : ""
+        : `No ${activeTab.toLowerCase()} in your portfolio`}
+    </Text>
+  )}
+</View>
 
-          {/* Search Results */}
-          <ScrollView style={{ flex: 1, padding: 12 }}>
-            {isLoading && (
-              <ActivityIndicator
-                size="large"
-                color="blue"
-                style={{ marginVertical: 20 }}
-              />
-            )}
-            {error && (
-              <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text>
-            )}
-            {searchResult && (
-              <View style={styles.resultBox}>
-                <Text>{searchResult}</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
+
+        </ScrollView>
       )}
 
-      {/* Toast Messages */}
-      {message && (
-        <View style={styles.toast}>
-          <Text style={{ color: "white" }}>{message}</Text>
-        </View>
-      )}
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("Dashboard")}>
+          <Home color={activeScreen === "Dashboard" ? "#ffffff" : "#6b7280"} size={24} />
+          <Text style={[styles.navText, { color: activeScreen === "Dashboard" ? "#ffffff" : "#6b7280" }]}>
+            Dashboard
+          </Text>
+        </TouchableOpacity>
+
+     <TouchableOpacity
+  style={styles.navItem}
+  onPress={() => {
+    setActiveScreen("Search"); // make Search active
+    setInSearchMode(true);
+    setSearchTerm("");
+    setSearchResult([]);
+  }}
+>
+  <Search color={inSearchMode ? "#ffffff" : "#6b7280"} size={24} />
+  <Text style={[styles.navText, { color: inSearchMode ? "#ffffff" : "#6b7280" }]}>Search</Text>
+</TouchableOpacity>
+
+<TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("Portfolio")}>
+  <Briefcase color={activeScreen === "Portfolio" && !inSearchMode ? "#ffffff" : "#6b7280"} size={24} />
+  <Text style={[styles.navText, { color: activeScreen === "Portfolio" && !inSearchMode ? "#ffffff" : "#6b7280" }]}>
+    Portfolio
+  </Text>
+</TouchableOpacity>
+
+
+        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("Profile")}>
+          <User color={activeScreen === "Profile" ? "#ffffff" : "#6b7280"} size={24} />
+          <Text style={[styles.navText, { color: activeScreen === "Profile" ? "#ffffff" : "#6b7280" }]}>
+            Profile
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "white" },
+  container: { flex: 1, backgroundColor: "#0f172a" },
   header: {
-    padding: 12,
-    marginTop: 40,
-    backgroundColor: "white",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: "#0f172a",
   },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerText: { marginLeft: 6, fontSize: 14, color: "gray" },
-  iconBtn: { padding: 6 },
-  main: { flex: 1, padding: 12 },
-  title: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
-  centerBox: { alignItems: "center", marginVertical: 20 },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    backgroundColor: "white",
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    marginBottom: 20,
-  },
-  footerBtn: { alignItems: "center" },
-  footerText: { fontSize: 12, color: "gray" },
-  footerTextActive: { fontSize: 12, color: "blue", marginTop: 2 },
-  toast: {
-    position: "absolute",
-    bottom: 80,
-    alignSelf: "center",
-    backgroundColor: "black",
-    padding: 10,
-    borderRadius: 20,
-  },
-  searchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    marginTop: 40, // Safe area / status bar
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    backgroundColor: "#f1f5f9",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-  },
-  searchBtn: {
-    marginLeft: 8,
-    backgroundColor: "#3b82f6",
-    padding: 10,
-    borderRadius: 20,
-  },
-  resultBox: {
-    backgroundColor: "white",
-    padding: 0,
-    borderRadius: 8,
-    marginBottom: 19  },
+  headerTitle: { fontSize: 18, fontWeight: "600", color: "white" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  errorText: { color: "#ef4444", fontSize: 16, marginBottom: 16, textAlign: "center" },
+  retryButton: { backgroundColor: "#3b82f6", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  retryButtonText: { color: "white", fontSize: 16, fontWeight: "600" },
+  content: { flex: 1 },
+  profileSection: { alignItems: "center", paddingVertical: 16 },
+  totalLabel: { fontSize: 14, color: "#94a3b8", marginBottom: 4 },
+  totalValue: { fontSize: 20, fontWeight: "600", color: "white" },
+  tabContainer: { flexDirection: "row", paddingHorizontal: 16, marginBottom: 8 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
+  activeTab: { borderBottomColor: "#3b82f6" },
+  tabText: { fontSize: 16, color: "#94a3b8", fontWeight: "500" },
+  activeTabText: { color: "white" },
+  stockList: { paddingHorizontal: 16, paddingBottom: 100 },
+  stockItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: "#1e293b" },
+  stockName: { fontSize: 16, fontWeight: "500", color: "white" },
+  stockShares: { fontSize: 14, color: "#64748b" },
+  bottomNav: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 12, paddingBottom: 28, backgroundColor: "#1e293b", borderTopWidth: 1, borderTopColor: "#334155" },
+  navItem: { alignItems: "center" },
+  navText: { fontSize: 12, color: "#6b7280", marginTop: 4 },
+  searchInput: { backgroundColor: "#1e293b", padding: 8, color: "white", borderRadius: 8 },
 });
 
 export default StockHome;

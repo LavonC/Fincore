@@ -1,0 +1,70 @@
+[I 251002 09:51:18 smartConnect:124] in pool
+[I 251002 09:51:21 smartConnect:124] in pool
+[I 251002 09:53:06 smartConnect:124] in pool
+[W 251002 09:53:10 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 09:53:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 09:53:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 09:53:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 09:53:46 smartConnect:124] in pool
+[W 251002 09:53:52 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 09:54:05 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 09:54:05 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 09:54:05 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 10:54:20 smartConnect:124] in pool
+[W 251002 10:54:20 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 10:54:32 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 10:54:32 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 10:54:32 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 10:54:48 smartConnect:124] in pool
+[W 251002 10:54:48 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 10:54:59 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 10:54:59 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 10:54:59 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:02:09 smartConnect:124] in pool
+[W 251002 11:02:09 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:02:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:02:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:02:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:02:23 smartConnect:124] in pool
+[W 251002 11:02:28 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:02:38 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:02:38 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:02:38 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[E 251002 11:03:13 smartConnect:246] Error occurred while making a POST request to https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword. Error: Invalid totp. URL: https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword, Headers: {'Content-type': 'application/json', 'X-ClientLocalIP': '127.0.0.1', 'X-ClientPublicIP': '106.193.147.98', 'X-MACAddress': '98:59:7a:e5:1f:d1', 'Accept': 'application/json', 'X-PrivateKey': '5umHYhQD', 'X-UserType': 'USER', 'X-SourceID': 'WEB'}, Request: {'clientcode': 'PARSHURAM', 'password': '1546', 'totp': '599300'}, Response: {'status': False, 'message': 'Invalid totp', 'errorcode': 'AB1050', 'data': None}
+[E 251002 11:03:13 historicalserver:49] Login failed with error: Login failed: {'status': False, 'message': 'Invalid totp', 'errorcode': 'AB1050', 'data': None}
+[E 251002 11:03:13 historicalserver:224] Application failed to start due to login error.
+[E 251002 11:03:24 smartConnect:246] Error occurred while making a POST request to https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword. Error: Invalid totp. URL: https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword, Headers: {'Content-type': 'application/json', 'X-ClientLocalIP': '127.0.0.1', 'X-ClientPublicIP': '106.193.147.98', 'X-MACAddress': '98:59:7a:e5:1f:d1', 'Accept': 'application/json', 'X-PrivateKey': '5umHYhQD', 'X-UserType': 'USER', 'X-SourceID': 'WEB'}, Request: {'clientcode': 'PARSHURAM', 'password': '1546', 'totp': '599300'}, Response: {'status': False, 'message': 'Invalid totp', 'errorcode': 'AB1050', 'data': None}
+[E 251002 11:03:24 historicalserver:49] Login failed with error: Login failed: {'status': False, 'message': 'Invalid totp', 'errorcode': 'AB1050', 'data': None}
+[E 251002 11:03:24 historicalserver:224] Application failed to start due to login error.
+[I 251002 11:04:30 smartConnect:124] in pool
+[I 251002 11:05:36 smartConnect:124] in pool
+[I 251002 11:06:12 smartConnect:124] in pool
+[W 251002 11:06:18 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:06:33 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:06:33 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:06:33 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:07:25 smartConnect:124] in pool
+[W 251002 11:07:26 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:07:36 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:07:36 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:07:36 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:08:04 smartConnect:124] in pool
+[W 251002 11:08:10 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:08:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:08:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:08:20 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:10:24 smartConnect:124] in pool
+[W 251002 11:10:29 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:10:43 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:10:43 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:10:43 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:12:40 smartConnect:124] in pool
+[W 251002 11:12:46 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:12:56 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:12:56 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:12:56 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251002 11:18:05 smartConnect:124] in pool
+[W 251002 11:18:05 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251002 11:18:15 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:18:15 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251002 11:18:15 smartWebSocketV2:342] Connection closed due to max retry attempts reached.

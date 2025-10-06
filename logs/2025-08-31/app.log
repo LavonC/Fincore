@@ -1,0 +1,2 @@
+[E 250831 01:23:04 historicalserver:127] Error in most_traded: 'SmartConnect' object has no attribute 'getInstruments'
+[E 250831 01:25:16 historicalserver:130] Error in most_traded: 'SmartConnect' object has no attribute 'get_instrument_list'

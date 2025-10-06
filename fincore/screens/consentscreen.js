@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,14 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { API_ENDPOINTS } from '../apiConfig';
 
 const ConsentScreen = ({ navigation, route }) => {
   const [startDate, setStartDate] = useState(new Date());
@@ -19,6 +25,20 @@ const ConsentScreen = ({ navigation, route }) => {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [isRangeExpanded, setIsRangeExpanded] = useState(false);
   const [consentDays, setConsentDays] = useState('30');
+  const [loading, setLoading] = useState(false);
+  const [consentUrl, setConsentUrl] = useState('');
+  const [consentId, setConsentId] = useState('');
+  const [showWebView, setShowWebView] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState(null);
+  const userEmail = route?.params?.userEmail;
+
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   const formatDate = (date) => {
     const day = date.getDate().toString().padStart(2, '0');
@@ -42,41 +62,171 @@ const ConsentScreen = ({ navigation, route }) => {
   };
 
   const handleConsentDaysChange = (text) => {
-    // Only allow numbers
     const numericValue = text.replace(/[^0-9]/g, '');
     setConsentDays(numericValue);
   };
 
   const handleSubmitConsent = async () => {
-    // Validate consent days
     const days = parseInt(consentDays);
     if (!days || days <= 0) {
-      alert('Please enter a valid number of days');
+      Alert.alert('Error', 'Please enter a valid number of days');
       return;
     }
 
     if (days > 365) {
-      alert('Consent range cannot exceed 365 days');
+      Alert.alert('Error', 'Consent range cannot exceed 365 days');
       return;
     }
 
     try {
-      // Save consent data
-      // await AsyncStorage.setItem('consentGiven', 'true');
-      // await AsyncStorage.setItem('consentStartDate', startDate.toISOString());
-      // await AsyncStorage.setItem('consentEndDate', endDate.toISOString());
-      // await AsyncStorage.setItem('consentDays', consentDays);
+      setLoading(true);
       
-      // Navigate to Dashboard
-      navigation.navigate('Dashboard');
+      const email = userEmail || await AsyncStorage.getItem('userEmail');
+      if (!email) {
+        Alert.alert('Error', 'Please login again');
+        return;
+      }
+
+      // Format dates for Setu API (ISO 8601 format)
+      const formatDateForSetu = (date) => {
+        return date.toISOString();
+      };
+
+      // Create consent with date range and consent duration
+      const response = await axios.post(API_ENDPOINTS.CREATE_CONSENT, {
+        email: email,
+        consentDays: days,
+        dataRangeFrom: formatDateForSetu(startDate),
+        dataRangeTo: formatDateForSetu(endDate)
+      });
+
+      if (response.data.success) {
+        setConsentId(response.data.consentId);
+        setConsentUrl(response.data.consentUrl);
+        setShowWebView(true);
+        
+        // Start polling after 5 seconds
+        setTimeout(() => {
+          startPollingConsentStatus(response.data.consentId);
+        }, 5000);
+      }
     } catch (error) {
-      console.error('Error saving consent:', error);
+      console.error('Error creating consent:', error);
+      Alert.alert('Error', 'Failed to create consent request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startPollingConsentStatus = (id) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await axios.post(API_ENDPOINTS.CONSENT_CHECK, {
+          consentId: id
+        });
+
+        if (response.data.status === 'ACTIVE') {
+          clearInterval(interval);
+          setPollingInterval(null);
+          await handleConsentApproved(id);
+        } else if (response.data.status === 'REJECTED') {
+          clearInterval(interval);
+          setPollingInterval(null);
+          Alert.alert('Consent Rejected', 'You have rejected the consent request.');
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error('Error checking consent status:', error);
+      }
+    }, 3000);
+
+    setPollingInterval(interval);
+  };
+
+  const handleConsentApproved = async (id) => {
+    try {
+      setLoading(true);
+      setShowWebView(false);
+
+      // Create data session
+      const sessResponse = await axios.post(API_ENDPOINTS.SESSION_CHECK, {
+        consentId: id
+      });
+
+      if (sessResponse.data.success) {
+        // Wait for data to be fetched
+        setTimeout(async () => {
+          await axios.post(API_ENDPOINTS.GET_TRANSACTIONS, {
+            sessionId: sessResponse.data.sessionId
+          });
+
+          Alert.alert(
+            'Success',
+            'Your bank accounts have been connected successfully!',
+            [
+              {
+                text: 'View Dashboard',
+                onPress: () => {
+                  navigation.navigate('Dashboard');
+                }
+              }
+            ]
+          );
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('Error processing consent:', error);
+      Alert.alert('Partial Success', 'Consent created. Data will be available shortly.');
+      navigation.navigate('Dashboard');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClose = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
     navigation.goBack();
   };
+
+  if (showWebView && consentUrl) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Text style={styles.closeIcon}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Approve Consent</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <View style={{ backgroundColor: '#00d4d4', padding: 15 }}>
+          <Text style={{ color: '#1a1f2e', textAlign: 'center', fontSize: 14 }}>
+            Please approve the consent request to connect your bank accounts
+          </Text>
+        </View>
+
+        <WebView
+          source={{ uri: consentUrl }}
+          style={{ flex: 1 }}
+          startInLoadingState={true}
+          renderLoading={() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#00d4d4" />
+            </View>
+          )}
+        />
+
+        {loading && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(26, 31, 46, 0.9)', justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#00d4d4" />
+            <Text style={{ color: '#ffffff', marginTop: 10 }}>Processing consent...</Text>
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -211,8 +361,13 @@ const ConsentScreen = ({ navigation, route }) => {
           style={styles.submitButton}
           onPress={handleSubmitConsent}
           activeOpacity={0.8}
+          disabled={loading}
         >
-          <Text style={styles.submitButtonText}>Submit Consent</Text>
+          {loading ? (
+            <ActivityIndicator color="#1a1f2e" />
+          ) : (
+            <Text style={styles.submitButtonText}>Submit Consent</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

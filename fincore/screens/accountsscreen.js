@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,46 +7,65 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../apiConfig';
 
 const AccountsScreen = ({ navigation }) => {
-  const [accounts] = useState([
-    {
-      id: 1,
-      name: 'Main Account',
-      type: 'Checking',
-      lastDigits: '1234',
-      balance: 1234.56,
-      icon: '🏛️',
-    },
-    {
-      id: 2,
-      name: 'Savings Account',
-      type: 'Savings',
-      lastDigits: '5678',
-      balance: 5678.90,
-      icon: '🏛️',
-    },
-    {
-      id: 3,
-      name: 'Credit Card',
-      type: 'Credit',
-      lastDigits: '9012',
-      balance: 9012.34,
-      icon: '💳',
-    },
-  ]);
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAccountSelect = (account) => {
-    // Here you would:
-    // 1. Update the selected account in state/context
-    // 2. Navigate back to dashboard with new account data
-    console.log('Selected account:', account.name);
-    navigation.goBack();
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    try {
+      setLoading(true);
+      const email = await AsyncStorage.getItem('userEmail');
+      
+      if (!email) {
+        Alert.alert('Error', 'Please login again');
+        return;
+      }
+
+      const response = await axios.post(API_ENDPOINTS.GET_USER_ACCOUNTS, {
+        email: email
+      });
+
+      if (response.data.success) {
+        setAccounts(response.data.accounts);
+      }
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+      Alert.alert('Error', 'Failed to load accounts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccountSelect = async (account) => {
+    try {
+      await AsyncStorage.setItem('selectedAccountId', account.id.toString());
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error selecting account:', error);
+    }
   };
 
   const formatCurrency = (amount) => {
-    return `$${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    if (!amount) return '₹0.00';
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  };
+
+  const getAccountIcon = (type) => {
+    if (!type) return '🏛️';
+    if (type.toUpperCase().includes('CREDIT')) return '💳';
+    if (type.toUpperCase().includes('SAVINGS')) return '💰';
+    return '🏛️';
   };
 
   return (
@@ -71,31 +90,48 @@ const AccountsScreen = ({ navigation }) => {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.accountsList}>
-            {accounts.map((account) => (
-              <TouchableOpacity
-                key={account.id}
-                style={styles.accountCard}
-                onPress={() => handleAccountSelect(account)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.accountIcon}>
-                  <Text style={styles.iconText}>{account.icon}</Text>
-                </View>
-                
-                <View style={styles.accountInfo}>
-                  <Text style={styles.accountName}>{account.name}</Text>
-                  <Text style={styles.accountDetails}>
-                    {account.type} ••• {account.lastDigits}
-                  </Text>
-                </View>
+          {loading ? (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#00d4d4" />
+              <Text style={{ color: '#ffffff', marginTop: 10 }}>Loading accounts...</Text>
+            </View>
+          ) : accounts.length > 0 ? (
+            <View style={styles.accountsList}>
+              {accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={styles.accountCard}
+                  onPress={() => handleAccountSelect(account)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.accountIcon}>
+                    <Text style={styles.iconText}>
+                      {getAccountIcon(account.account_type)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>
+                      {account.account_holder_name || 'Account'}
+                    </Text>
+                    <Text style={styles.accountDetails}>
+                      {account.account_type || 'DEPOSIT'} ••• {account.masked_account_number?.slice(-4) || '0000'}
+                    </Text>
+                  </View>
 
-                <Text style={styles.accountBalance}>
-                  {formatCurrency(account.balance)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Text style={styles.accountBalance}>
+                    {formatCurrency(account.current_balance)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Text style={{ color: '#9ca3af', fontSize: 16, textAlign: 'center' }}>
+                No accounts found. Please connect your bank accounts first.
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>

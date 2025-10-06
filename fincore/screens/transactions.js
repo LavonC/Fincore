@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,54 +9,155 @@ import {
   ScrollView,
   TextInput,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../apiConfig';
 
-const TransactionsScreen = ({ navigation }) => {
+const TransactionsScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date'); // 'date', 'amount', 'category'
+  const [sortBy, setSortBy] = useState('date');
+  const [transactions, setTransactions] = useState([]);
+  const [groupedTransactions, setGroupedTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const accountId = route?.params?.accountId;
+  const accountName = route?.params?.accountName || 'Account';
 
-  // Sample transactions data grouped by date
-  const [transactions] = useState([
-    {
-      date: 'Today',
-      items: [
-        { id: 1, title: 'Supermarket', category: 'Groceries', amount: -45.20 },
-        { id: 2, title: 'Supermarket', category: 'Groceries', amount: -45.20 },
-        { id: 3, title: 'Restaurant', category: 'Dining', amount: -62.50 },
-      ],
-    },
-    {
-      date: 'Yesterday',
-      items: [
-        { id: 4, title: 'Electricity Bill', category: 'Utilities', amount: -85.00 },
-        { id: 5, title: 'Employer', category: 'Salary', amount: 2500.00 },
-      ],
-    },
-    {
-      date: 'Sep 20',
-      items: [
-        { id: 6, title: 'Apartment', category: 'Rent', amount: -1200.00 },
-        { id: 7, title: 'Clothing Store', category: 'Shopping', amount: -120.75 },
-      ],
-    },
-  ]);
+  useEffect(() => {
+    if (accountId) {
+      loadTransactions();
+    } else {
+      Alert.alert('Error', 'No account selected');
+      navigation.goBack();
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    groupTransactionsByDate();
+  }, [transactions, searchQuery]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post(API_ENDPOINTS.GET_ACCOUNT_TRANSACTIONS, {
+        accountId: accountId
+      });
+
+      if (response.data.success) {
+        setTransactions(response.data.transactions);
+      }
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      Alert.alert('Error', 'Failed to load transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const groupTransactionsByDate = () => {
+    let filtered = transactions;
+    
+    // Filter by search query
+    if (searchQuery) {
+      filtered = transactions.filter(txn => 
+        (txn.narration || '').toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Group by date
+    const groups = {};
+    filtered.forEach(txn => {
+      const date = new Date(txn.transaction_timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      let dateKey;
+      if (date.toDateString() === today.toDateString()) {
+        dateKey = 'Today';
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        dateKey = 'Yesterday';
+      } else {
+        dateKey = date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+      }
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(txn);
+    });
+
+    // Convert to array format
+    const grouped = Object.keys(groups).map(date => ({
+      date,
+      items: groups[date]
+    }));
+
+    setGroupedTransactions(grouped);
+  };
 
   const formatCurrency = (amount) => {
-    const sign = amount >= 0 ? '+' : '-';
     const absAmount = Math.abs(amount).toFixed(2);
-    return `${sign}$${absAmount}`;
+    return amount >= 0 ? `+₹${absAmount}` : `-₹${absAmount}`;
+  };
+
+  const formatTransactionName = (narration, type) => {
+    if (!narration) return type === 'CREDIT' ? 'Money Received' : 'Payment';
+    
+    // Format: MODE/TYPE/ID/NAME/CODE/NUMBER
+    // Example: FT/CR/718148753341/Yashvi Zachariah/QBBL/24459093
+    const parts = narration.trim().split('/');
+    
+    // The name is the 4th element (index 3)
+    if (parts.length >= 4) {
+      const name = parts[3].trim();
+      if (name && name.length > 0) {
+        // Capitalize properly
+        const formattedName = name.split(' ')
+          .filter(word => word.length > 0)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        
+        // Limit to 40 characters for transactions page
+        if (formattedName.length > 40) {
+          return formattedName.substring(0, 37) + '...';
+        }
+        
+        return formattedName;
+      }
+    }
+    
+    // Fallback for unexpected formats
+    return type === 'CREDIT' ? 'Money Received' : 'Payment';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   const handleSortByAmount = () => {
     setSortBy('amount');
-    // Implement sorting logic here
-    console.log('Sort by Amount');
+    const sorted = [...transactions].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    setTransactions(sorted);
   };
 
   const handleSortByCategory = () => {
     setSortBy('category');
-    // Implement sorting logic here
-    console.log('Sort by Category');
+    const sorted = [...transactions].sort((a, b) => {
+      const catA = a.transaction_type || '';
+      const catB = b.transaction_type || '';
+      return catA.localeCompare(catB);
+    });
+    setTransactions(sorted);
   };
 
   return (
@@ -72,7 +173,7 @@ const TransactionsScreen = ({ navigation }) => {
           >
             <Text style={styles.closeIcon}>✕</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Transactions</Text>
+          <Text style={styles.headerTitle}>{accountName}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -91,43 +192,56 @@ const TransactionsScreen = ({ navigation }) => {
         </View>
 
         {/* Transactions List */}
-        <ScrollView 
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-        >
-          {transactions.map((group) => (
-            <View key={group.date} style={styles.transactionGroup}>
-              <Text style={styles.dateHeader}>{group.date}</Text>
-              
-              {group.items.map((transaction) => (
-                <TouchableOpacity 
-                  key={transaction.id} 
-                  style={styles.transactionItem}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>
-                      {transaction.title}
-                    </Text>
-                    <Text style={styles.transactionCategory}>
-                      {transaction.category}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.transactionAmount,
-                      transaction.amount >= 0
-                        ? styles.positiveAmount
-                        : styles.negativeAmount,
-                    ]}
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#00d4d4" />
+            <Text style={{ color: '#ffffff', marginTop: 10 }}>Loading transactions...</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+          >
+            {groupedTransactions.length > 0 ? groupedTransactions.map((group, groupIndex) => (
+              <View key={groupIndex} style={styles.transactionGroup}>
+                <Text style={styles.dateHeader}>{group.date}</Text>
+                
+                {group.items.map((transaction) => (
+                  <TouchableOpacity 
+                    key={transaction.id} 
+                    style={styles.transactionItem}
+                    activeOpacity={0.7}
                   >
-                    {formatCurrency(transaction.amount)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-        </ScrollView>
+                    <View style={styles.transactionInfo}>
+                      <Text style={styles.transactionTitle}>
+                        {formatTransactionName(transaction.narration, transaction.transaction_type)}
+                      </Text>
+                      <Text style={styles.transactionCategory}>
+                        {formatDate(transaction.transaction_timestamp)} • {formatTime(transaction.transaction_timestamp)} • {transaction.mode || 'Bank'}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.transactionAmount,
+                        transaction.transaction_type === 'CREDIT'
+                          ? styles.positiveAmount
+                          : styles.negativeAmount,
+                      ]}
+                    >
+                      {transaction.transaction_type === 'DEBIT' ? '-' : '+'}₹{Math.abs(transaction.amount).toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )) : (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af', fontSize: 16, textAlign: 'center' }}>
+                  {searchQuery ? 'No transactions match your search' : 'No transactions found'}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
 
         {/* Sort Buttons */}
         <View style={styles.sortContainer}>
@@ -253,7 +367,7 @@ const styles = StyleSheet.create({
     color: '#10b981',
   },
   negativeAmount: {
-    color: '#ffffff',
+    color: '#ef4444',
   },
   sortContainer: {
     flexDirection: 'row',

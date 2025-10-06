@@ -11,6 +11,8 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_ENDPOINTS } from '../apiConfig';
 
 const ExplorePage = ({ navigation }) => {
   // Handle back button press - prompt user to exit app
@@ -90,22 +92,60 @@ const ExplorePage = ({ navigation }) => {
 
   const checkConsentAndNavigate = async () => {
     try {
-      // Example: Check AsyncStorage for consent
-      // const consentGiven = await AsyncStorage.getItem('consentGiven');
+      // Get user email from AsyncStorage
+      const userEmail = await AsyncStorage.getItem('userEmail');
       
-      // For now, always show consent screen (remove this later)
-      // If consent not given, show consent screen
-      navigation.navigate('Consent');
-      
-      // After implementing AsyncStorage, use this:
-      // if (consentGiven === 'true') {
-      //   navigation.navigate('Dashboard');
-      // } else {
-      //   navigation.navigate('Consent');
-      // }
+      if (!userEmail) {
+        Alert.alert('Error', 'Please login again');
+        navigation.navigate('Login');
+        return;
+      }
+
+      console.log('🔍 Checking consent for user:', userEmail);
+
+      // Check if user has active consent
+      const response = await fetch(API_ENDPOINTS.CHECK_USER_CONSENT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      console.log('✅ Consent check response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 Consent data:', data);
+
+      if (data.hasConsent && data.status === 'ACTIVE') {
+        // User has active consent, navigate to dashboard
+        console.log('✅ Active consent found, navigating to dashboard');
+        navigation.navigate('Dashboard');
+      } else {
+        // No active consent, show consent screen
+        console.log('⚠️ No active consent, navigating to consent screen');
+        navigation.navigate('Consent');
+      }
     } catch (error) {
-      console.error('Error checking consent:', error);
-      navigation.navigate('Consent');
+      console.error('❌ Error checking consent:', error);
+      Alert.alert(
+        'Connection Error',
+        'Unable to connect to server. Please check your internet connection and try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: () => checkConsentAndNavigate(),
+          },
+          {
+            text: 'Go to Consent',
+            onPress: () => navigation.navigate('Consent'),
+          },
+        ]
+      );
     }
   };
 

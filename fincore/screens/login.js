@@ -14,6 +14,7 @@ import {
   BackHandler,
   Image,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_URL from '../config';
 
 export default function LoginPage({ navigation }) {
@@ -74,6 +75,9 @@ export default function LoginPage({ navigation }) {
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
+      
+      // Store user email for AA integration
+      await AsyncStorage.setItem('userEmail', email);
       
       // If login successful, navigate to Explore page
       // Reset navigation stack to prevent going back to login

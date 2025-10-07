@@ -1,13 +1,4 @@
-// StockDetailScreen.js
-// React Native Stock Detail Screen with Live WebSocket Data
-// 
-// Installation required:
-// npm install react-native-svg socket.io-client
-// 
-// Usage:
-// <StockDetailScreen route={{ params: { symboltoken: '2885', symbol: 'AAPL' } }} />
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,90 +7,241 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
-import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Line, Text as SvgText, G } from 'react-native-svg';
 import io from 'socket.io-client';
+import axios from 'axios';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const API_BASE_URL = 'http://192.168.1.2:5000'; // Update with your IP
 
-export default function CandleCloseChart({ route, navigation }) {
-  console.log(route?.params, "route params");
-const { stockSymbol = "2885", companyName = "Reliance Industries" } = route?.params || {};
+// Market hours: 9:15 AM to 3:30 PM IST
+const isMarketOpen = () => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentTime = hours * 60 + minutes;
+  
+  const marketOpen = 9 * 60 + 15;  // 9:15 AM
+  const marketClose = 15 * 60 + 30; // 3:30 PM
+  
+  // Check if it's a weekday (Monday = 1, Sunday = 0)
+  const day = now.getDay();
+  const isWeekday = day >= 1 && day <= 5;
+  
+  return isWeekday && currentTime >= marketOpen && currentTime < marketClose;
+};
 
- const symbol = stockSymbol; // just an alias
-
-// Use stockSymbol for display and lookup
-
+export default function StockDetailScreen({ route, navigation }) {
+  const socketRef = useRef(null);
+  const [companies, setCompanies] = useState([]);
+  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
+  
+  const [selectedCompany, setSelectedCompany] = useState({
+    name: route?.params?.companyName || "Reliance Industries",
+    symbol: route?.params?.symbol || "RELIANCE",
+    symboltoken: route?.params?.symboltoken || "2885"
+  });
 
   const [stockData, setStockData] = useState({
-    symbol: symbol,
     price: 0,
     change: 0,
+    changePercent: 0,
     open: 0,
     high: 0,
     low: 0,
     volume: '0M',
-    peRatio: '25.5x',
-    divYield: '0.6%',
-    eps: 6.85,
-    marketCap: '2.8T',
+    prevClose: 0,
   });
 
   const [chartData, setChartData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('1D');
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [marketStatus, setMarketStatus] = useState(isMarketOpen());
 
+  const periods = ['1D', '1W', '1M', '3M', '1Y', 'All'];
+
+  // Check market status every minute
   useEffect(() => {
-    const socket = io('http://192.168.1.2:5000', {
+    const interval = setInterval(() => {
+      setMarketStatus(isMarketOpen());
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch companies list on mount
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  // Load data when company or period changes
+  useEffect(() => {
+    loadData();
+    
+    return () => {
+      disconnectSocket();
+    };
+  }, [selectedCompany, selectedPeriod]);
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/companies`);
+      setCompanies(response.data);
+    } catch (error) {
+      console.error('❌ Error fetching companies:', error);
+    }
+  };
+
+  const loadData = async () => {
+    // Always load historical data first
+    await fetchHistoricalData(selectedCompany.symboltoken, selectedPeriod);
+    
+    // Only connect to live stream if:
+    // 1. Period is 1D (intraday)
+    // 2. Market is open
+    if (selectedPeriod === '1D' && marketStatus) {
+      connectLiveSocket();
+    }
+  };
+
+  const fetchHistoricalData = async (symboltoken, dateRange) => {
+    try {
+      console.log(`📊 Fetching historical data for ${symboltoken}, range: ${dateRange}`);
+      setLoading(true);
+
+      const response = await axios.get(`${API_BASE_URL}/historical_data`, {
+        params: {
+          symboltoken: symboltoken,
+          date_range: dateRange
+        }
+      });
+
+      if (response.data.success) {
+        const historicalData = response.data.data;
+        
+        // Format for chart with timestamps
+        const formattedData = historicalData.map((candle) => ({
+          timestamp: new Date(candle.timestamp).getTime(),
+          price: candle.close,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          volume: candle.volume
+        }));
+
+        setChartData(formattedData);
+
+        // Update stock data with latest candle
+        if (historicalData.length > 0) {
+          const latestCandle = historicalData[historicalData.length - 1];
+          const firstCandle = historicalData[0];
+          
+          const change = latestCandle.close - firstCandle.close;
+          const changePercent = (change / firstCandle.close) * 100;
+
+          setStockData({
+            price: latestCandle.close,
+            open: latestCandle.open,
+            high: latestCandle.high,
+            low: latestCandle.low,
+            volume: ((latestCandle.volume || 0) / 1000000).toFixed(1) + 'M',
+            change: change,
+            changePercent: changePercent,
+            prevClose: firstCandle.close,
+          });
+        }
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error('❌ Error fetching historical data:', error);
+      setLoading(false);
+    }
+  };
+
+  const connectLiveSocket = () => {
+    console.log('🔌 Connecting to live socket...');
+    
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    const socket = io(API_BASE_URL, {
       transports: ['websocket'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
 
     socket.on('connect', () => {
       console.log('✅ Socket connected');
       setConnected(true);
-      setLoading(false);
-      socket.emit('start_stream', { stockSymbol });
+      
+      socket.emit('start_stream', { symboltoken: selectedCompany.symboltoken });
     });
 
     socket.on('live_tick', (message) => {
       console.log('📩 Tick received:', message);
 
+      // Don't process if market is closed
+      if (!isMarketOpen()) {
+        console.log('⏰ Market closed, ignoring tick');
+        disconnectSocket();
+        return;
+      }
+
       try {
         const data = typeof message === 'string' ? JSON.parse(message) : message;
 
-        // Angel One WebSocket data structure
         if (data.last_traded_price || data.ltp) {
-          const ltp = data.last_traded_price || data.ltp;
-          const high = data.high_price || data.high || 0;
-          const low = data.low_price || data.low || 0;
-          const open = data.open_price || data.open || 0;
-          const volume = data.volume_trade || data.volume || 0;
+          const ltp = (data.last_traded_price || data.ltp) / 100;
+          const high = (data.high_price || data.high || 0) / 100;
+          const low = (data.low_price || data.low || 0) / 100;
+          const open = (data.open_price || data.open || 0) / 100;
+          const volume = data.volume_trade_for_the_day || data.volume || 0;
+          const timestamp = new Date().getTime();
 
           setStockData((prev) => {
-            const prevPrice = prev.price || ltp / 100;
-            const newPrice = ltp / 100;
-            const change = ((newPrice - prevPrice) / prevPrice) * 100;
+            const prevClose = prev.prevClose || ltp;
+            const change = ltp - prevClose;
+            const changePercent = prevClose !== 0 ? (change / prevClose) * 100 : 0;
 
             return {
-              ...prev,
-              price: newPrice,
-              high: high / 100,
-              low: low / 100,
-              open: open / 100,
+              price: ltp,
+              high: Math.max(high, prev.high),
+              low: low > 0 ? Math.min(low, prev.low || low) : prev.low,
+              open: prev.open || open,
               volume: (volume / 1000000).toFixed(1) + 'M',
-              change: change.toFixed(2),
+              change: change,
+              changePercent: changePercent,
+              prevClose: prevClose,
             };
           });
 
+          // Append new point to chart data
           setChartData((prev) => {
-            const newPoint = { x: prev.length, y: ltp / 100 };
-            return [...prev, newPoint].slice(-50); // Keep last 50 points
+            const newPoint = {
+              timestamp,
+              price: ltp,
+              open,
+              high,
+              low,
+              volume
+            };
+            return [...prev, newPoint];
           });
         }
       } catch (err) {
-        console.error('Parse error:', err);
+        console.error('❌ Parse error:', err);
       }
+    });
+
+    socket.on('status', (data) => {
+      console.log('📊 Status:', data);
     });
 
     socket.on('disconnect', () => {
@@ -107,35 +249,71 @@ const { stockSymbol = "2885", companyName = "Reliance Industries" } = route?.par
       setConnected(false);
     });
 
-    return () => socket.disconnect();
-  }, [stockSymbol]);
+    socket.on('connect_error', (error) => {
+      console.error('❌ Connection error:', error);
+    });
 
-  const periods = ['1D', '1W', '1M', '3M', '1Y', 'All'];
+    socketRef.current = socket;
+  };
 
-  const generatePath = () => {
-    if (chartData.length < 2) return '';
+  const disconnectSocket = () => {
+    if (socketRef.current) {
+      console.log('🔌 Disconnecting socket');
+      socketRef.current.emit('stop_stream');
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setConnected(false);
+    }
+  };
+
+  const handlePeriodChange = (period) => {
+    setSelectedPeriod(period);
+    setChartData([]);
+    disconnectSocket();
+  };
+
+  const handleCompanySelect = (company) => {
+    console.log('🏢 Selected company:', company);
+    setSelectedCompany(company);
+    setShowCompanyPicker(false);
+    setChartData([]);
+    setSelectedPeriod('1D');
+  };
+
+  const renderChart = () => {
+    if (chartData.length < 2) return null;
 
     const chartWidth = SCREEN_WIDTH - 48;
-    const chartHeight = 150;
-    const padding = 10;
+    const chartHeight = 200;
+    const padding = { top: 10, right: 50, bottom: 20, left: 10 };
 
-    const xScale = (chartWidth - 2 * padding) / (chartData.length - 1);
-    const yMin = Math.min(...chartData.map((d) => d.y));
-    const yMax = Math.max(...chartData.map((d) => d.y));
-    const yScale = (chartHeight - 2 * padding) / (yMax - yMin || 1);
+    // Calculate price range
+    const prices = chartData.map(d => d.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const priceRange = maxPrice - minPrice;
+    const pricePadding = priceRange * 0.1;
 
+    const yMin = minPrice - pricePadding;
+    const yMax = maxPrice + pricePadding;
+    const yRange = yMax - yMin;
+
+    // Scales
+    const xScale = (chartWidth - padding.left - padding.right) / (chartData.length - 1);
+    const yScale = (chartHeight - padding.top - padding.bottom) / yRange;
+
+    // Generate path
     let path = '';
-
     chartData.forEach((point, i) => {
-      const x = padding + i * xScale;
-      const y = chartHeight - padding - (point.y - yMin) * yScale;
+      const x = padding.left + i * xScale;
+      const y = chartHeight - padding.bottom - (point.price - yMin) * yScale;
 
       if (i === 0) {
         path += `M ${x} ${y}`;
       } else {
         const prevPoint = chartData[i - 1];
-        const prevX = padding + (i - 1) * xScale;
-        const prevY = chartHeight - padding - (prevPoint.y - yMin) * yScale;
+        const prevX = padding.left + (i - 1) * xScale;
+        const prevY = chartHeight - padding.bottom - (prevPoint.price - yMin) * yScale;
 
         const cpX1 = prevX + (x - prevX) / 3;
         const cpX2 = prevX + (2 * (x - prevX)) / 3;
@@ -144,190 +322,205 @@ const { stockSymbol = "2885", companyName = "Reliance Industries" } = route?.par
       }
     });
 
-    return path;
+    // Generate Y-axis labels
+    const numYLabels = 5;
+    const yLabels = [];
+    for (let i = 0; i < numYLabels; i++) {
+      const price = yMin + (yRange * i / (numYLabels - 1));
+      const y = chartHeight - padding.bottom - (price - yMin) * yScale;
+      yLabels.push({ price, y });
+    }
+
+    const isPositive = stockData.changePercent >= 0;
+    const lineColor = isPositive ? "#4ade80" : "#f87171";
+
+    return (
+      <Svg height={chartHeight} width={chartWidth}>
+        {/* Y-axis grid lines and labels */}
+        {yLabels.map((label, i) => (
+          <G key={i}>
+            <Line
+              x1={padding.left}
+              y1={label.y}
+              x2={chartWidth - padding.right}
+              y2={label.y}
+              stroke="#2a2a2a"
+              strokeWidth="1"
+              strokeDasharray="4,4"
+            />
+            <SvgText
+              x={chartWidth - padding.right + 5}
+              y={label.y + 4}
+              fill="#6b7280"
+              fontSize="10"
+            >
+              ₹{label.price.toFixed(2)}
+            </SvgText>
+          </G>
+        ))}
+
+        {/* Price line */}
+        <Path
+          d={path}
+          stroke={lineColor}
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
   };
 
-  const isPositive = stockData.change >= 0;
+  const isPositive = stockData.changePercent >= 0;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-  <Text style={styles.backIcon}>←</Text>
-</TouchableOpacity>
+    <View style={styles.container}>
+      <ScrollView>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowCompanyPicker(true)}>
+            <Text style={styles.headerTitle}>{selectedCompany.symbol} ▼</Text>
+          </TouchableOpacity>
+          <View style={styles.placeholder} />
+        </View>
 
-        <Text style={styles.headerTitle}>{stockData.symbol}</Text>
-        <View style={styles.placeholder} />
-      </View>
+        {/* Price Section */}
+        <View style={styles.priceSection}>
+          <Text style={styles.companyName}>{selectedCompany.name}</Text>
+          <Text style={styles.priceText}>₹{stockData.price.toFixed(2)}</Text>
+          <View style={styles.changeContainer}>
+            <Text style={[styles.changeText, isPositive ? styles.positive : styles.negative]}>
+              {isPositive ? '+' : ''}₹{stockData.change.toFixed(2)} ({isPositive ? '+' : ''}{stockData.changePercent.toFixed(2)}%)
+            </Text>
+            {connected && marketStatus && (
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Live</Text>
+              </View>
+            )}
+            {!marketStatus && (
+              <View style={[styles.liveIndicator, styles.closedIndicator]}>
+                <Text style={styles.closedText}>Market Closed</Text>
+              </View>
+            )}
+          </View>
 
-      {/* Price Section */}
-      <View style={styles.priceSection}>
-        <Text style={styles.symbolText}>{stockData.symbol}</Text>
-        <Text style={styles.priceText}>₹{stockData.price.toFixed(2)}</Text>
-        <View style={styles.changeContainer}>
-          <Text style={[styles.changeText, isPositive ? styles.positive : styles.negative]}>
-            Today {isPositive ? '+' : ''}{stockData.change}%
-          </Text>
-          {connected && (
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>Live</Text>
+          {/* Chart */}
+          {loading ? (
+            <ActivityIndicator size="large" color="#4ade80" style={styles.loader} />
+          ) : chartData.length > 0 ? (
+            <View style={styles.chartContainer}>
+              {renderChart()}
+            </View>
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataText}>No data available</Text>
             </View>
           )}
-        </View>
 
-        {/* Chart */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#4ade80" style={styles.loader} />
-        ) : chartData.length > 0 ? (
-          <View style={styles.chartContainer}>
-            <Svg height="150" width={SCREEN_WIDTH - 48}>
-              <Defs>
-                <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <Stop offset="0%" stopColor="#4ade80" stopOpacity="0.8" />
-                  <Stop offset="100%" stopColor="#22c55e" stopOpacity="1" />
-                </LinearGradient>
-              </Defs>
-              <Path
-                d={generatePath()}
-                stroke="url(#lineGradient)"
-                strokeWidth="2.5"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-        ) : (
-          <View style={styles.noDataContainer}>
-            <Text style={styles.noDataText}>Waiting for live data...</Text>
-          </View>
-        )}
-
-        {/* Period Selector */}
-        <View style={styles.periodContainer}>
-          {periods.map((period) => (
-            <TouchableOpacity
-              key={period}
-              onPress={() => setSelectedPeriod(period)}
-              style={[
-                styles.periodButton,
-                selectedPeriod === period && styles.periodButtonActive,
-              ]}
-            >
-              <Text
+          {/* Period Selector */}
+          <View style={styles.periodContainer}>
+            {periods.map((period) => (
+              <TouchableOpacity
+                key={period}
+                onPress={() => handlePeriodChange(period)}
                 style={[
-                  styles.periodText,
-                  selectedPeriod === period && styles.periodTextActive,
+                  styles.periodButton,
+                  selectedPeriod === period && styles.periodButtonActive,
                 ]}
               >
-                {period}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* About Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.aboutText}>
-          Apple Inc. designs, manufactures, and markets smartphones, personal computers,
-          tablets, wearables, and accessories worldwide. It also sells various related
-          services.
-        </Text>
-      </View>
-
-      {/* Key Stats */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Stats</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Open</Text>
-            <Text style={styles.statValue}>₹{stockData.open.toFixed(2)}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>High</Text>
-            <Text style={styles.statValue}>₹{stockData.high.toFixed(2)}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Low</Text>
-            <Text style={styles.statValue}>₹{stockData.low.toFixed(2)}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Volume</Text>
-            <Text style={styles.statValue}>{stockData.volume}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>P/E Ratio</Text>
-            <Text style={styles.statValue}>{stockData.peRatio}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Div Yield</Text>
-            <Text style={styles.statValue}>{stockData.divYield}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>EPS</Text>
-            <Text style={styles.statValue}>₹{stockData.eps}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Market Cap</Text>
-            <Text style={styles.statValue}>₹{stockData.marketCap}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Analyst Ratings */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Analyst Ratings</Text>
-        <View style={styles.ratingsContainer}>
-          <View style={styles.ratingLeft}>
-            <Text style={styles.ratingScore}>4.5</Text>
-            <View style={styles.starsContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Text key={star} style={star <= 4 ? styles.starFilled : styles.starEmpty}>
-                  ★
+                <Text
+                  style={[
+                    styles.periodText,
+                    selectedPeriod === period && styles.periodTextActive,
+                  ]}
+                >
+                  {period}
                 </Text>
-              ))}
-            </View>
-            <Text style={styles.reviewCount}>25 reviews</Text>
-          </View>
-          <View style={styles.ratingRight}>
-            {[
-              { rating: 5, percent: 50, color: '#4ade80' },
-              { rating: 4, percent: 30, color: '#4ade80' },
-              { rating: 3, percent: 10, color: '#fbbf24' },
-              { rating: 2, percent: 5, color: '#f87171' },
-              { rating: 1, percent: 5, color: '#f87171' },
-            ].map((item) => (
-              <View key={item.rating} style={styles.ratingBar}>
-                <Text style={styles.ratingNumber}>{item.rating}</Text>
-                <View style={styles.barBackground}>
-                  <View
-                    style={[
-                      styles.barFill,
-                      { width: `${item.percent}%`, backgroundColor: item.color },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.percentText}>{item.percent}%</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
-      </View>
 
-      {/* Buy/Sell Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.buyButton}>
-          <Text style={styles.buyButtonText}>Buy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sellButton}>
-          <Text style={styles.sellButtonText}>Sell</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        {/* Key Stats */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Key Stats</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Open</Text>
+              <Text style={styles.statValue}>₹{stockData.open.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>High</Text>
+              <Text style={styles.statValue}>₹{stockData.high.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Low</Text>
+              <Text style={styles.statValue}>₹{stockData.low.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Volume</Text>
+              <Text style={styles.statValue}>{stockData.volume}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Prev Close</Text>
+              <Text style={styles.statValue}>₹{stockData.prevClose.toFixed(2)}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Buy/Sell Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.buyButton}>
+            <Text style={styles.buyButtonText}>Buy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sellButton}>
+            <Text style={styles.sellButtonText}>Sell</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Company Picker Modal */}
+      <Modal
+        visible={showCompanyPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCompanyPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Company</Text>
+              <TouchableOpacity onPress={() => setShowCompanyPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={companies}
+              keyExtractor={(item) => item.symboltoken}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.companyItem}
+                  onPress={() => handleCompanySelect(item)}
+                >
+                  <View>
+                    <Text style={styles.companySymbol}>{item.symbol}</Text>
+                    <Text style={styles.companyNameText}>{item.name}</Text>
+                  </View>
+                  {selectedCompany.symboltoken === item.symboltoken && (
+                    <Text style={styles.selectedCheck}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -364,10 +557,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-  symbolText: {
+  companyName: {
     fontSize: 14,
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   priceText: {
     fontSize: 36,
@@ -379,9 +572,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginBottom: 20,
+    flexWrap: 'wrap',
   },
   changeText: {
     fontSize: 14,
+    fontWeight: '500',
   },
   positive: {
     color: '#4ade80',
@@ -393,25 +589,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#1f1f1f',
+    borderRadius: 12,
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#4ade80',
   },
   liveText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#4ade80',
+    fontWeight: '600',
+  },
+  closedIndicator: {
+    backgroundColor: '#ef444420',
+  },
+  closedText: {
+    fontSize: 11,
+    color: '#ef4444',
+    fontWeight: '600',
   },
   chartContainer: {
     marginVertical: 24,
   },
   loader: {
-    marginVertical: 40,
+    marginVertical: 60,
   },
   noDataContainer: {
-    height: 150,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 24,
@@ -424,18 +633,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
+    backgroundColor: '#1f1f1f',
+    borderRadius: 10,
+    padding: 4,
   },
   periodButton: {
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 8,
+    alignItems: 'center',
     borderRadius: 8,
   },
   periodButtonActive: {
-    backgroundColor: '#1f1f1f',
+    backgroundColor: '#10b981',
   },
   periodText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#6b7280',
   },
   periodTextActive: {
@@ -451,20 +664,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 16,
   },
-  aboutText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    lineHeight: 22,
-  },
   statsContainer: {
-    gap: 0,
+    backgroundColor: '#1f1f1f',
+    borderRadius: 12,
+    padding: 16,
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f1f1f',
+    borderBottomColor: '#2a2a2a',
   },
   statLabel: {
     fontSize: 14,
@@ -472,69 +682,8 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#fff',
-  },
-  ratingsContainer: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  ratingLeft: {
-    alignItems: 'flex-start',
-  },
-  ratingScore: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    gap: 2,
-    marginBottom: 4,
-  },
-  starFilled: {
-    fontSize: 18,
-    color: '#fbbf24',
-  },
-  starEmpty: {
-    fontSize: 18,
-    color: '#374151',
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  ratingRight: {
-    flex: 1,
-    gap: 8,
-  },
-  ratingBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  ratingNumber: {
-    fontSize: 12,
-    color: '#9ca3af',
-    width: 12,
-  },
-  barBackground: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#1f1f1f',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  percentText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    width: 36,
-    textAlign: 'right',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -548,22 +697,87 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   buyButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#fff',
   },
   sellButton: {
     flex: 1,
-    backgroundColor: '#374151',
+    backgroundColor: '#ef4444',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   sellButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  modalClose: {
+    fontSize: 28,
+    color: '#9ca3af',
+    fontWeight: '300',
+  },
+  companyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  companySymbol: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  companyNameText: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+  selectedCheck: {
+    fontSize: 24,
+    color: '#10b981',
+    fontWeight: '700',
   },
 });

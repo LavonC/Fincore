@@ -1,0 +1,36 @@
+[W 251007 14:59:10 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251007 15:00:25 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:00:28 smartConnect:124] in pool
+[W 251007 15:39:10 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:39:12 smartConnect:124] in pool
+[W 251007 15:40:00 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:41:14 smartConnect:124] in pool
+[W 251007 15:41:16 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:41:31 smartConnect:124] in pool
+[W 251007 15:41:41 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251007 15:41:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:41:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:41:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251007 15:41:54 smartConnect:124] in pool
+[W 251007 15:43:38 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:43:39 smartConnect:124] in pool
+[W 251007 15:44:16 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:45:57 smartConnect:124] in pool
+[W 251007 15:46:25 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[I 251007 15:46:32 smartConnect:124] in pool
+[W 251007 15:46:40 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251007 15:48:29 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:48:29 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[I 251007 15:48:36 smartConnect:124] in pool
+[I 251007 15:48:41 smartConnect:124] in pool
+[E 251007 15:48:42 smartWebSocketV2:212] Error occurred during subscribe: Connection is already closed.
+[W 251007 15:48:42 smartWebSocketV2:318] Attempting to resubscribe/reconnect (Attempt 1)...
+[W 251007 15:48:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:48:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:48:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[W 251007 15:48:53 smartWebSocketV2:342] Connection closed due to max retry attempts reached.
+[E 251007 16:04:25 historicalserver:196] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251007 16:04:54 historicalserver:196] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251007 16:05:29 historicalserver:196] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251007 16:06:20 historicalserver:196] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251007 16:06:24 historicalserver:196] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''

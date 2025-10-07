@@ -148,38 +148,71 @@ const ConsentScreen = ({ navigation, route }) => {
       setLoading(true);
       setShowWebView(false);
 
+      console.log('✅ Consent approved, creating data session...');
+
       // Create data session
       const sessResponse = await axios.post(API_ENDPOINTS.SESSION_CHECK, {
         consentId: id
       });
 
-      if (sessResponse.data.success) {
-        // Wait for data to be fetched
-        setTimeout(async () => {
-          await axios.post(API_ENDPOINTS.GET_TRANSACTIONS, {
-            sessionId: sessResponse.data.sessionId
-          });
+      console.log('📊 Session response:', sessResponse.data);
 
-          Alert.alert(
-            'Success',
-            'Your bank accounts have been connected successfully!',
-            [
-              {
-                text: 'View Dashboard',
-                onPress: () => {
-                  navigation.navigate('Dashboard');
-                }
+      if (sessResponse.data.success) {
+        const sessionId = sessResponse.data.sessionId;
+        const sessionStatus = sessResponse.data.status;
+
+        console.log(`🔄 Session created: ${sessionId} with status: ${sessionStatus}`);
+
+        // Only try to fetch transactions if session is ACTIVE or COMPLETED
+        if (sessionStatus === 'ACTIVE' || sessionStatus === 'COMPLETED') {
+          try {
+            console.log('🔄 Fetching transactions...');
+            await axios.post(API_ENDPOINTS.GET_TRANSACTIONS, {
+              sessionId: sessionId
+            });
+            console.log('✅ Transactions fetched successfully');
+          } catch (fetchError) {
+            // Don't fail if transaction fetch fails - webhook will handle it
+            console.warn('⚠️ Transaction fetch failed (webhook will retry):', fetchError.message);
+          }
+        } else {
+          console.log('⏳ Session pending, webhook will auto-fetch when ready');
+        }
+
+        setLoading(false);
+
+        Alert.alert(
+          'Success',
+          'Your bank accounts have been connected successfully! Data may take a few moments to sync.',
+          [
+            {
+              text: 'View Dashboard',
+              onPress: () => {
+                navigation.navigate('Dashboard');
               }
-            ]
-          );
-        }, 5000);
+            }
+          ]
+        );
+      } else {
+        throw new Error('Session creation failed');
       }
     } catch (error) {
-      console.error('Error processing consent:', error);
-      Alert.alert('Partial Success', 'Consent created. Data will be available shortly.');
-      navigation.navigate('Dashboard');
-    } finally {
+      console.error('❌ Error processing consent:', error);
       setLoading(false);
+      
+      // Still navigate to dashboard - data will load when ready
+      Alert.alert(
+        'Consent Created', 
+        'Your consent has been created. Data will be available shortly on the dashboard.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('Dashboard');
+            }
+          }
+        ]
+      );
     }
   };
 

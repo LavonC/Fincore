@@ -65,14 +65,20 @@ const FinancialDashboard = ({ navigation }) => {
 
   const loadFinancialData = async (email) => {
     try {
+      console.log('📥 Loading financial data for:', email);
+
       // Get user's bank accounts
       const accountsResponse = await axios.post(API_ENDPOINTS.GET_USER_ACCOUNTS, {
         email: email
       });
 
+      console.log('📊 Accounts response:', accountsResponse.data);
+
       if (accountsResponse.data.success && accountsResponse.data.accounts.length > 0) {
         const userAccounts = accountsResponse.data.accounts;
         setAccounts(userAccounts);
+
+        console.log(`✅ Found ${userAccounts.length} account(s)`);
 
         // Check if there's a selected account in storage
         const selectedAccountId = await AsyncStorage.getItem('selectedAccountId');
@@ -85,17 +91,25 @@ const FinancialDashboard = ({ navigation }) => {
         
         setCurrentAccount(accountToShow);
 
+        console.log('💰 Current account balance:', accountToShow.current_balance);
+
         // Get transactions for this account
         const transactionsResponse = await axios.post(API_ENDPOINTS.GET_ACCOUNT_TRANSACTIONS, {
           accountId: accountToShow.id
         });
 
+        console.log('📊 Transactions response:', transactionsResponse.data);
+
         if (transactionsResponse.data.success) {
-          setTransactions(transactionsResponse.data.transactions.slice(0, 3));
+          const txns = transactionsResponse.data.transactions.slice(0, 3);
+          setTransactions(txns);
+          console.log(`✅ Loaded ${txns.length} recent transaction(s)`);
         }
+      } else {
+        console.log('⚠️ No accounts found or response not successful');
       }
     } catch (error) {
-      console.error('Error loading financial data:', error);
+      console.error('❌ Error loading financial data:', error.message);
     }
   };
 
@@ -245,9 +259,14 @@ const FinancialDashboard = ({ navigation }) => {
                   {currentAccount ? `****${currentAccount.masked_account_number?.slice(-4) || '0000'}` : 'Account'}
                 </Text>
               </View>
-              <Text style={styles.balanceAmount}>
-                ₹{currentAccount?.current_balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
-              </Text>
+              <View>
+                <Text style={styles.balanceAmount}>
+                  ₹{currentAccount?.current_balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                </Text>
+                {currentAccount?.current_balance === 0 && transactions.length > 0 && (
+                  <Text style={styles.syncingText}>⏳ Syncing balance...</Text>
+                )}
+              </View>
             </View>
           </View>
 
@@ -406,6 +425,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  syncingText: {
+    fontSize: 12,
+    color: '#fbbf24',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   transactionItem: {
     flexDirection: 'row',

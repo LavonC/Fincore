@@ -191,7 +191,7 @@ const StockHome = ({ navigation }) => {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("Dashboard")}>
+        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("")}>
           <Home color={activeScreen === "Dashboard" ? "#ffffff" : "#6b7280"} size={24} />
           <Text style={[styles.navText, { color: activeScreen === "Dashboard" ? "#ffffff" : "#6b7280" }]}>
             Dashboard

@@ -188,7 +188,7 @@ export default function LoginScreen ({ navigation }) {
           {/* Register Link */}
           <View style={styles.registerLinkContainer}>
             <Text style={styles.registerLinkText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+            <TouchableOpacity onPress={() => navigation.navigate("RegistrationScreen")}>
               <Text style={styles.registerLink}>Create Account</Text>
             </TouchableOpacity>
           </View>

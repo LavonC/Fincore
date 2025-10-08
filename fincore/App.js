@@ -12,6 +12,8 @@ import StocksScreen from "./screens/dashboard/StocksScreen";
 import TaxFilingScreen from "./screens/dashboard/TaxFilingScreen";
 import MainTabNavigator from "./screens/MainTabNavigator";
 import StockHome from "./screens/Stocks/stockhome";
+import RegistrationScreen from "./screens/Stocks/registrationscreen";
+import LoginScreen from "./screens/Stocks/loginscreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -19,7 +21,20 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-     <Stack.Navigator initialRouteName="StockHome">
+     <Stack.Navigator initialRouteName="LoginScreen">
+<Stack.Screen
+    name="LoginScreen"
+    component={LoginScreen}
+    options={{ headerShown: false }}
+  />
+
+
+ <Stack.Screen
+    name="RegistrationScreen"
+    component={RegistrationScreen}
+    options={{ headerShown: false }}
+  />
+
   <Stack.Screen
     name="Login"
     component={LoginPage}

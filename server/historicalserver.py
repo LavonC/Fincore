@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 from flask_socketio import SocketIO
 import threading
 import pytz
+import mysql.connector
+from mysql.connector import Error
+import bcrypt
+import secrets
 
 smartApi = None
 totp = None
@@ -32,6 +36,318 @@ token_secret = os.getenv("TOKEN_SECRET")
 print("Using username:", username)
 print("Using API Key:", api_key)
 print("Using Token Secret:", token_secret)
+
+# ---- MySQL Database Configuration ----
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',  # Default XAMPP password is empty
+    'database': 'stock_trading_app'
+}
+
+
+# ---- Database Helper Functions ----
+def get_db_connection():
+    """Create and return a database connection"""
+    try:
+        connection = mysql.connector.connect(**DB_CONFIG)
+        return connection
+    except Error as e:
+        logger.error(f"Database connection error: {e}")
+        return None
+
+
+def init_database():
+    """Initialize database and create tables if they don't exist"""
+    try:
+        # First connect without specifying database to create it
+        connection = mysql.connector.connect(
+            host=DB_CONFIG['host'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password']
+        )
+        cursor = connection.cursor()
+        
+        # Create database if not exists
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
+        cursor.execute(f"USE {DB_CONFIG['database']}")
+        
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INT AUTO_INCREMENT PRIMARY KEY,
+                full_name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                phone VARCHAR(20),
+                angel_username VARCHAR(100) NOT NULL,
+                angel_api_key TEXT NOT NULL,
+                angel_password_hash TEXT NOT NULL,
+                angel_token_secret TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP NULL,
+                is_active BOOLEAN DEFAULT TRUE,
+                INDEX idx_email (email),
+                INDEX idx_username (angel_username)
+            )
+        """)
+        
+        # Create user sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                session_token VARCHAR(255) UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL DEFAULT '2026-12-31 23:59:59',
+                is_active BOOLEAN DEFAULT TRUE,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_token (session_token)
+            )
+        """)
+        
+        connection.commit()
+        logger.info("✅ Database and tables initialized successfully")
+        cursor.close()
+        connection.close()
+        return True
+    except Error as e:
+        logger.error(f"❌ Database initialization error: {e}")
+        return False
+
+
+# ---- Authentication APIs ----
+@app.route('/api/auth/register', methods=['POST'])
+def register_user():
+    """Register a new user with their Angel One credentials"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['full_name', 'email', 'phone', 'angel_username', 
+                          'angel_api_key', 'angel_password', 'angel_token_secret']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"{field} is required"}), 400
+        
+        # Hash the Angel One password
+        password_hash = bcrypt.hashpw(data['angel_password'].encode('utf-8'), bcrypt.gensalt())
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cursor = connection.cursor()
+        
+        # Check if user already exists
+        cursor.execute("SELECT user_id FROM users WHERE email = %s", (data['email'],))
+        if cursor.fetchone():
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "User with this email already exists"}), 409
+        
+        # Insert new user
+        insert_query = """
+            INSERT INTO users 
+            (full_name, email, phone, angel_username, angel_api_key, 
+             angel_password_hash, angel_token_secret)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (
+            data['full_name'],
+            data['email'],
+            data['phone'],
+            data['angel_username'],
+            data['angel_api_key'],
+            password_hash.decode('utf-8'),
+            data['angel_token_secret']
+        ))
+        
+        connection.commit()
+        user_id = cursor.lastrowid
+        
+        # Create session token
+        session_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(days=30)
+        
+        cursor.execute("""
+            INSERT INTO user_sessions (user_id, session_token, expires_at)
+            VALUES (%s, %s, %s)
+        """, (user_id, session_token, expires_at))
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        logger.info(f"✅ User registered successfully: {data['email']}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Registration successful",
+            "user_id": user_id,
+            "session_token": session_token,
+            "full_name": data['full_name']
+        }), 201
+        
+    except Error as e:
+        logger.error(f"❌ Registration error: {e}")
+        return jsonify({"error": "Registration failed", "details": str(e)}), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login_user():
+    """Login user with email and verify credentials"""
+    try:
+        data = request.json
+        email = data.get('email')
+        angel_password = data.get('angel_password')
+        
+        if not email or not angel_password:
+            return jsonify({"error": "Email and password are required"}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cursor = connection.cursor(dictionary=True)
+        
+        # Get user data
+        cursor.execute("""
+            SELECT user_id, full_name, email, angel_username, angel_api_key, 
+                   angel_password_hash, angel_token_secret, is_active
+            FROM users WHERE email = %s
+        """, (email,))
+        
+        user = cursor.fetchone()
+        
+        if not user:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Invalid email or password"}), 401
+        
+        if not user['is_active']:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Account is deactivated"}), 403
+        
+        # Verify password
+        if not bcrypt.checkpw(angel_password.encode('utf-8'), 
+                             user['angel_password_hash'].encode('utf-8')):
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Invalid email or password"}), 401
+        
+        # Update last login
+        cursor.execute("""
+            UPDATE users SET last_login = CURRENT_TIMESTAMP 
+            WHERE user_id = %s
+        """, (user['user_id'],))
+        
+        # Create new session
+        session_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(days=30)
+        
+        cursor.execute("""
+            INSERT INTO user_sessions (user_id, session_token, expires_at)
+            VALUES (%s, %s, %s)
+        """, (user['user_id'], session_token, expires_at))
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        logger.info(f"✅ User logged in successfully: {email}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Login successful",
+            "user_id": user['user_id'],
+            "full_name": user['full_name'],
+            "email": user['email'],
+            "session_token": session_token
+        }), 200
+        
+    except Error as e:
+        logger.error(f"❌ Login error: {e}")
+        return jsonify({"error": "Login failed", "details": str(e)}), 500
+
+
+@app.route('/api/auth/verify', methods=['POST'])
+def verify_session():
+    """Verify if session token is valid"""
+    try:
+        data = request.json
+        session_token = data.get('session_token')
+        
+        if not session_token:
+            return jsonify({"error": "Session token required"}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cursor = connection.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT s.user_id, s.expires_at, u.full_name, u.email, u.is_active
+            FROM user_sessions s
+            JOIN users u ON s.user_id = u.user_id
+            WHERE s.session_token = %s AND s.is_active = TRUE
+        """, (session_token,))
+        
+        session = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        
+        if not session:
+            return jsonify({"valid": False, "error": "Invalid session"}), 401
+        
+        if not session['is_active']:
+            return jsonify({"valid": False, "error": "Account deactivated"}), 403
+        
+        if datetime.now() > session['expires_at']:
+            return jsonify({"valid": False, "error": "Session expired"}), 401
+        
+        return jsonify({
+            "valid": True,
+            "user_id": session['user_id'],
+            "full_name": session['full_name'],
+            "email": session['email']
+        }), 200
+        
+    except Error as e:
+        logger.error(f"❌ Session verification error: {e}")
+        return jsonify({"error": "Verification failed"}), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout_user():
+    """Logout user by invalidating session"""
+    try:
+        data = request.json
+        session_token = data.get('session_token')
+        
+        if not session_token:
+            return jsonify({"error": "Session token required"}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE user_sessions SET is_active = FALSE 
+            WHERE session_token = %s
+        """, (session_token,))
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        return jsonify({"success": True, "message": "Logged out successfully"}), 200
+        
+    except Error as e:
+        logger.error(f"❌ Logout error: {e}")
+        return jsonify({"error": "Logout failed"}), 500
 
 
 # ---------- Market Hours Check ----------
@@ -520,15 +836,23 @@ def check_market_close():
 
 if __name__ == '__main__':
     try:
+        # Initialize database
+        if not init_database():
+            logger.error("Failed to initialize database. Exiting...")
+            exit(1)
+        
+        # Login to SmartAPI
         login_smart_api()
         
         # Start background task to monitor market hours
         market_monitor = threading.Thread(target=check_market_close, daemon=True)
         market_monitor.start()
         
+        logger.info("🚀 Server started successfully with authentication support!")
+        
     except Exception as e:
         logger.error("Application failed to start due to login error.")
         exit(1)
 
     # Run Flask + SocketIO together
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    socketio.run(app, debug=True, host="0.0.0.0", port=4000)

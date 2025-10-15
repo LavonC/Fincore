@@ -18,16 +18,16 @@ import secrets
 smartApi = None
 totp = None
 data = None
-active_sws = {}  # Track active WebSocket connections
+active_sws = {} 
 
-# Load .env file
+
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# ---- Angel Smart API Credentials ----
+
 api_key = os.getenv("API_KEY")
 username = "AAAV325665"
 pwd = os.getenv("PASSWORD")
@@ -37,16 +37,15 @@ print("Using username:", username)
 print("Using API Key:", api_key)
 print("Using Token Secret:", token_secret)
 
-# ---- MySQL Database Configuration ----
+
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': '',  # Default XAMPP password is empty
+    'password': '',  
     'database': 'stock_trading_app'
 }
 
 
-# ---- Database Helper Functions ----
 def get_db_connection():
     """Create and return a database connection"""
     try:
@@ -60,7 +59,7 @@ def get_db_connection():
 def init_database():
     """Initialize database and create tables if they don't exist"""
     try:
-        # First connect without specifying database to create it
+        
         connection = mysql.connector.connect(
             host=DB_CONFIG['host'],
             user=DB_CONFIG['user'],
@@ -68,11 +67,10 @@ def init_database():
         )
         cursor = connection.cursor()
         
-        # Create database if not exists
+    
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
         cursor.execute(f"USE {DB_CONFIG['database']}")
-        
-        # Create users table
+       
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -91,7 +89,7 @@ def init_database():
             )
         """)
         
-        # Create user sessions table
+      
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_sessions (
                 session_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -106,30 +104,28 @@ def init_database():
         """)
         
         connection.commit()
-        logger.info("✅ Database and tables initialized successfully")
+        logger.info(" Database and tables initialized successfully")
         cursor.close()
         connection.close()
         return True
     except Error as e:
-        logger.error(f"❌ Database initialization error: {e}")
+        logger.error(f" Database initialization error: {e}")
         return False
 
 
-# ---- Authentication APIs ----
 @app.route('/api/auth/register', methods=['POST'])
 def register_user():
     """Register a new user with their Angel One credentials"""
     try:
         data = request.json
-        
-        # Validate required fields
+     
         required_fields = ['full_name', 'email', 'phone', 'angel_username', 
                           'angel_api_key', 'angel_password', 'angel_token_secret']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({"error": f"{field} is required"}), 400
         
-        # Hash the Angel One password
+        
         password_hash = bcrypt.hashpw(data['angel_password'].encode('utf-8'), bcrypt.gensalt())
         
         connection = get_db_connection()
@@ -138,7 +134,7 @@ def register_user():
         
         cursor = connection.cursor()
         
-        # Check if user already exists
+       
         cursor.execute("SELECT user_id FROM users WHERE email = %s", (data['email'],))
         if cursor.fetchone():
             cursor.close()
@@ -165,7 +161,6 @@ def register_user():
         connection.commit()
         user_id = cursor.lastrowid
         
-        # Create session token
         session_token = secrets.token_urlsafe(32)
         expires_at = datetime.now() + timedelta(days=30)
         
@@ -178,7 +173,7 @@ def register_user():
         cursor.close()
         connection.close()
         
-        logger.info(f"✅ User registered successfully: {data['email']}")
+        logger.info(f" User registered successfully: {data['email']}")
         
         return jsonify({
             "success": True,
@@ -189,7 +184,7 @@ def register_user():
         }), 201
         
     except Error as e:
-        logger.error(f"❌ Registration error: {e}")
+        logger.error(f" Registration error: {e}")
         return jsonify({"error": "Registration failed", "details": str(e)}), 500
 
 
@@ -229,14 +224,14 @@ def login_user():
             connection.close()
             return jsonify({"error": "Account is deactivated"}), 403
         
-        # Verify password
+     
         if not bcrypt.checkpw(angel_password.encode('utf-8'), 
                              user['angel_password_hash'].encode('utf-8')):
             cursor.close()
             connection.close()
             return jsonify({"error": "Invalid email or password"}), 401
         
-        # Update last login
+      
         cursor.execute("""
             UPDATE users SET last_login = CURRENT_TIMESTAMP 
             WHERE user_id = %s
@@ -255,7 +250,7 @@ def login_user():
         cursor.close()
         connection.close()
         
-        logger.info(f"✅ User logged in successfully: {email}")
+        logger.info(f" User logged in successfully: {email}")
         
         return jsonify({
             "success": True,
@@ -267,7 +262,7 @@ def login_user():
         }), 200
         
     except Error as e:
-        logger.error(f"❌ Login error: {e}")
+        logger.error(f" Login error: {e}")
         return jsonify({"error": "Login failed", "details": str(e)}), 500
 
 
@@ -315,7 +310,7 @@ def verify_session():
         }), 200
         
     except Error as e:
-        logger.error(f"❌ Session verification error: {e}")
+        logger.error(f" Session verification error: {e}")
         return jsonify({"error": "Verification failed"}), 500
 
 
@@ -346,28 +341,28 @@ def logout_user():
         return jsonify({"success": True, "message": "Logged out successfully"}), 200
         
     except Error as e:
-        logger.error(f"❌ Logout error: {e}")
+        logger.error(f" Logout error: {e}")
         return jsonify({"error": "Logout failed"}), 500
 
 
-# ---------- Market Hours Check ----------
+# ---------- Market Hours 
 def is_market_open():
     """Check if Indian stock market is currently open"""
     ist = pytz.timezone('Asia/Kolkata')
     now = datetime.now(ist)
     
-    # Check if it's a weekday (Monday=0, Sunday=6)
+   
     if now.weekday() > 4:  # Saturday or Sunday
         return False
     
-    # Market hours: 9:15 AM to 3:30 PM IST
+ 
     market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
     market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
     
     return market_open <= now <= market_close
 
 
-# ---------- Helper function for login ----------
+# ------
 def login_smart_api():
     global smartApi
     if smartApi:
@@ -389,8 +384,8 @@ def login_smart_api():
         raise
 
 
-# ---------- Market Status API ----------
-@app.route('/market_status', methods=['GET'])
+
+@app.route('/market_status', methods=['GET'])       # ---------- Market Status API ----------
 def get_market_status():
     """Returns current market status"""
     is_open = is_market_open()
@@ -404,8 +399,8 @@ def get_market_status():
     })
 
 
-# ---------- Company List API ----------
-@app.route('/companies', methods=['GET'])
+
+@app.route('/companies', methods=['GET'])                   # ---------- Company List API ----------
 def get_companies():
     """Returns a list of popular companies with their symbol tokens"""
     companies = [
@@ -428,7 +423,6 @@ def get_companies():
     return jsonify(companies)
 
 
-# ---------- Historical Data API (Enhanced) ----------
 @app.route('/historical_data', methods=['GET'])
 def get_historical_data():
     """Fetch historical candle data for a given symbol token"""
@@ -443,11 +437,11 @@ def get_historical_data():
         ist = pytz.timezone('Asia/Kolkata')
         now = datetime.now(ist)
         
-        # Calculate date range and appropriate interval
+       
         if date_range == "1D":
-            # For intraday, get data from market open today (9:15 AM)
+       
             fromdate = now.replace(hour=9, minute=15, second=0, microsecond=0)
-            # If before market open, get previous trading day
+      
             if now.hour < 9 or (now.hour == 9 and now.minute < 15):
                 fromdate = fromdate - timedelta(days=1)
             fromdate = fromdate.strftime("%Y-%m-%d %H:%M")
@@ -486,7 +480,6 @@ def get_historical_data():
         candle_data = smartApi.getCandleData(params)
 
         if candle_data.get("data"):
-            # Format: [timestamp, open, high, low, close, volume]
             formatted_data = []
             for candle in candle_data["data"]:
                 formatted_data.append({
@@ -524,7 +517,6 @@ def get_latest_price():
 
         smartApi = login_smart_api()
         
-        # Get last 2 days of data to ensure we have the latest
         ist = pytz.timezone('Asia/Kolkata')
         now = datetime.now(ist)
         fromdate = (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M")
@@ -611,7 +603,7 @@ def get_candle_data():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Funds API ----------
+
 @app.route("/funds", methods=["GET"])
 def get_funds():
     try:
@@ -623,7 +615,7 @@ def get_funds():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Previous Day Closing Prices ----------
+
 @app.route("/previous_close", methods=["GET"])
 def get_previous_close():
     try:
@@ -672,7 +664,7 @@ def get_csv():
     return send_file(file_path, mimetype="text/csv", as_attachment=True, download_name="EQUITY_L.csv")
 
 
-# ---------- SmartWebSocket Live Stream (Enhanced) ----------
+
 def start_sws(symboltoken, sid):
     """Start WebSocket connection for a specific symbol token"""
     print(f"🔵 Starting SmartWebSocket for token: {symboltoken}, session: {sid}")
@@ -721,14 +713,14 @@ def start_sws(symboltoken, sid):
         }, room=sid)
 
     def on_error(wsapp, error):
-        print(f"❌ WebSocket Error for {symboltoken}:", error)
+        print(f" WebSocket Error for {symboltoken}:", error)
         socketio.emit("status", {
             "message": f"WebSocket error: {str(error)}",
             "market_open": is_market_open()
         }, room=sid)
 
     def on_close(wsapp):
-        print(f"🔴 WebSocket Closed for {symboltoken}")
+        print(f" WebSocket Closed for {symboltoken}")
         if sid in active_sws:
             del active_sws[sid]
         socketio.emit("status", {
@@ -755,16 +747,16 @@ def start_stream(data):
     
     print(f"🔵 Starting WebSocket Stream for token: {symboltoken}, session: {sid}")
     
-    # Check market status
+  
     if not is_market_open():
-        print(f"⏰ Market is closed. Rejecting stream request for {symboltoken}")
+        print(f" Market is closed. Rejecting stream request for {symboltoken}")
         socketio.emit("status", {
             "message": "Market is closed. Live streaming not available.",
             "market_open": False
         }, room=sid)
         return
 
-    # Stop existing connection for this session
+
     if sid in active_sws:
         try:
             active_sws[sid].close_connection()
@@ -812,7 +804,7 @@ def handle_disconnect():
             pass
 
 
-# ---------- Background Task: Auto-close WebSockets when market closes ----------
+
 def check_market_close():
     """Periodically check if market has closed and disconnect all WebSockets"""
     while True:
@@ -848,7 +840,7 @@ if __name__ == '__main__':
         market_monitor = threading.Thread(target=check_market_close, daemon=True)
         market_monitor.start()
         
-        logger.info("🚀 Server started successfully with authentication support!")
+        logger.info(" Server started successfully with authentication support!")
         
     except Exception as e:
         logger.error("Application failed to start due to login error.")

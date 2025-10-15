@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { User, Mail, Phone, Key, Lock, Eye, EyeOff } from "lucide-react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_ENDPOINTS } from "../../apiConfig";
 
 export default function RegistrationScreen  ({ navigation })  {
   const [formData, setFormData] = useState({
@@ -85,7 +86,7 @@ export default function RegistrationScreen  ({ navigation })  {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://192.168.1.2:4000/api/auth/register", {
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

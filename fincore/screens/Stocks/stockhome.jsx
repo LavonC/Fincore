@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { ArrowLeft, Plus, Home, Search, Briefcase, User } from "lucide-react-native";
 import Papa from "papaparse";
+import { API_ENDPOINTS } from "../../apiConfig";
+
 
 const StockHome = ({ navigation }) => {
   const [portfolioData, setPortfolioData] = useState([]);
@@ -29,7 +31,7 @@ const StockHome = ({ navigation }) => {
   const fetchPortfolioData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("http://192.168.1.2:5000/get_csv");
+      const response = await fetch(API_ENDPOINTS.GET_COMPANYS);
       if (!response.ok) throw new Error("Failed to fetch portfolio data");
       const text = await response.text();
       const parsed = Papa.parse(text, { header: true });

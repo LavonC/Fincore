@@ -13,14 +13,14 @@ import {
 import Svg, { Path, Line, Text as SvgText, G } from 'react-native-svg';
 import io from 'socket.io-client';
 import axios from 'axios';
+import {API_ENDPOINTS} from "../../apiConfig";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const API_BASE_URL = 'http://192.168.1.2:5000'; // Update with your IP
 
 // Market hours: 9:15 AM to 3:30 PM IST
 const isMarketOpen = () => {
   const now = new Date();
-  const hours = now.getHours();
+  const hours = now.getHours();''
   const minutes = now.getMinutes();
   const currentTime = hours * 60 + minutes;
   
@@ -89,7 +89,7 @@ export default function StockDetailScreen({ route, navigation }) {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/companies`);
+      const response = await axios.get(API_ENDPOINTS.COMPANIES);
       setCompanies(response.data);
     } catch (error) {
       console.error('❌ Error fetching companies:', error);
@@ -113,7 +113,7 @@ export default function StockDetailScreen({ route, navigation }) {
       console.log(`📊 Fetching historical data for ${symboltoken}, range: ${dateRange}`);
       setLoading(true);
 
-      const response = await axios.get(`${API_BASE_URL}/historical_data`, {
+      const response = await axios.get(API_ENDPOINTS.HISTORY, {
         params: {
           symboltoken: symboltoken,
           date_range: dateRange

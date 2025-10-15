@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_ENDPOINTS } from "../../apiConfig";
 
 export default function LoginScreen ({ navigation }) {
   const [email, setEmail] = useState("");
@@ -29,7 +30,7 @@ export default function LoginScreen ({ navigation }) {
       const sessionToken = await AsyncStorage.getItem("session_token");
       if (sessionToken) {
         // Verify session with backend
-        const response = await fetch("http://192.168.1.2:4000/api/auth/verify", {
+        const response = await fetch(API_ENDPOINTS.VERIFY, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -74,7 +75,7 @@ export default function LoginScreen ({ navigation }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://192.168.1.2:5000/api/auth/login", {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

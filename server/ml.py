@@ -14,16 +14,15 @@ import pytz
 smartApi = None
 totp = None
 data = None
-active_sws = {}  # Track active WebSocket connections
+active_sws = {} 
 
-# Load .env file
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# ---- Angel Smart API Credentials ----
+
 api_key = os.getenv("API_KEY")
 username = "AAAV325665"
 pwd = os.getenv("PASSWORD")
@@ -34,24 +33,21 @@ print("Using API Key:", api_key)
 print("Using Token Secret:", token_secret)
 
 
-# ---------- Market Hours Check ----------
+
 def is_market_open():
     """Check if Indian stock market is currently open"""
     ist = pytz.timezone('Asia/Kolkata')
     now = datetime.now(ist)
     
-    # Check if it's a weekday (Monday=0, Sunday=6)
     if now.weekday() > 4:  # Saturday or Sunday
         return False
     
-    # Market hours: 9:15 AM to 3:30 PM IST
     market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
     market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
     
     return market_open <= now <= market_close
 
 
-# ---------- Helper function for login ----------
 def login_smart_api():
     global smartApi
     if smartApi:
@@ -66,14 +62,13 @@ def login_smart_api():
             raise Exception(f"Login failed: {data}")
 
         smartApi = smartApi_instance
-        logger.info("✅ Successfully logged in to Angel One SmartAPI.")
+        logger.info(" Successfully logged in to Angel One SmartAPI.")
         return smartApi
     except Exception as e:
         logger.error(f"Login failed with error: {e}")
         raise
 
 
-# ---------- Market Status API ----------
 @app.route('/market_status', methods=['GET'])
 def get_market_status():
     """Returns current market status"""
@@ -88,7 +83,6 @@ def get_market_status():
     })
 
 
-# ---------- Company List API ----------
 @app.route('/companies', methods=['GET'])
 def get_companies():
     """Returns a list of popular companies with their symbol tokens"""
@@ -112,7 +106,6 @@ def get_companies():
     return jsonify(companies)
 
 
-# ---------- Historical Data API (Enhanced) ----------
 @app.route('/historical_data', methods=['GET'])
 def get_historical_data():
     """Fetch historical candle data for a given symbol token"""
@@ -127,12 +120,10 @@ def get_historical_data():
         ist = pytz.timezone('Asia/Kolkata')
         now = datetime.now(ist)
         
-        # Calculate date range and appropriate interval
         if date_range == "1D":
-            # For intraday, get data from market open today (9:15 AM)
             fromdate = now.replace(hour=9, minute=15, second=0, microsecond=0)
-            # If before market open, get previous trading day
-            if now.hour < 9 or (now.hour == 9 and now.minute < 15):
+          
+            if now.hour < 9 or (now.hour == 9 and now.minute < 15):                 # If before market open, get previous trading day
                 fromdate = fromdate - timedelta(days=1)
             fromdate = fromdate.strftime("%Y-%m-%d %H:%M")
             interval = interval or "ONE_MINUTE"
@@ -170,7 +161,6 @@ def get_historical_data():
         candle_data = smartApi.getCandleData(params)
 
         if candle_data.get("data"):
-            # Format: [timestamp, open, high, low, close, volume]
             formatted_data = []
             for candle in candle_data["data"]:
                 formatted_data.append({
@@ -197,7 +187,6 @@ def get_historical_data():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Latest Price API ----------
 @app.route('/latest_price', methods=['GET'])
 def get_latest_price():
     """Get the latest price for a symbol (useful when market is closed)"""
@@ -208,7 +197,6 @@ def get_latest_price():
 
         smartApi = login_smart_api()
         
-        # Get last 2 days of data to ensure we have the latest
         ist = pytz.timezone('Asia/Kolkata')
         now = datetime.now(ist)
         fromdate = (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M")
@@ -254,7 +242,6 @@ def get_latest_price():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Candle Data API (Existing) ----------
 @app.route('/get_candles', methods=['GET'])
 def get_candle_data():
     try:
@@ -295,7 +282,6 @@ def get_candle_data():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Funds API ----------
 @app.route("/funds", methods=["GET"])
 def get_funds():
     try:
@@ -307,7 +293,6 @@ def get_funds():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Previous Day Closing Prices ----------
 @app.route("/previous_close", methods=["GET"])
 def get_previous_close():
     try:
@@ -356,14 +341,12 @@ def get_csv():
     return send_file(file_path, mimetype="text/csv", as_attachment=True, download_name="EQUITY_L.csv")
 
 
-# ---------- SmartWebSocket Live Stream (Enhanced) ----------
 def start_sws(symboltoken, sid):
     """Start WebSocket connection for a specific symbol token"""
-    print(f"🔵 Starting SmartWebSocket for token: {symboltoken}, session: {sid}")
+    print(f" Starting SmartWebSocket for token: {symboltoken}, session: {sid}")
     
-    # Check if market is open before starting
     if not is_market_open():
-        print(f"⏰ Market is closed. Not starting WebSocket for {symboltoken}")
+        print(f" Market is closed. Not starting WebSocket for {symboltoken}")
         socketio.emit("status", {
             "message": "Market is closed. Live streaming not available.",
             "market_open": False
@@ -381,9 +364,8 @@ def start_sws(symboltoken, sid):
     sws = SmartWebSocketV2(auth_token, api_key, client_code, feed_token)
 
     def on_data(wsapp, message):
-        # Check if market is still open
         if not is_market_open():
-            print(f"⏰ Market closed during session. Stopping WebSocket for {symboltoken}")
+            print(f" Market closed during session. Stopping WebSocket for {symboltoken}")
             socketio.emit("status", {
                 "message": "Market has closed. Stopping live stream.",
                 "market_open": False
@@ -391,7 +373,7 @@ def start_sws(symboltoken, sid):
             sws.close_connection()
             return
             
-        print(f"📈 Live Tick Data for {symboltoken}:", message)
+        print(f" Live Tick Data for {symboltoken}:", message)
         socketio.emit("live_tick", message, room=sid)
 
     def on_open(wsapp):
@@ -405,14 +387,14 @@ def start_sws(symboltoken, sid):
         }, room=sid)
 
     def on_error(wsapp, error):
-        print(f"❌ WebSocket Error for {symboltoken}:", error)
+        print(f" WebSocket Error for {symboltoken}:", error)
         socketio.emit("status", {
             "message": f"WebSocket error: {str(error)}",
             "market_open": is_market_open()
         }, room=sid)
 
     def on_close(wsapp):
-        print(f"🔴 WebSocket Closed for {symboltoken}")
+        print(f" WebSocket Closed for {symboltoken}")
         if sid in active_sws:
             del active_sws[sid]
         socketio.emit("status", {
@@ -425,7 +407,6 @@ def start_sws(symboltoken, sid):
     sws.on_error = on_error
     sws.on_close = on_close
 
-    # Store active connection
     active_sws[sid] = sws
 
     sws.connect()  # runs indefinitely
@@ -437,18 +418,16 @@ def start_stream(data):
     symboltoken = data.get("symboltoken")
     sid = request.sid
     
-    print(f"🔵 Starting WebSocket Stream for token: {symboltoken}, session: {sid}")
+    print(f" Starting WebSocket Stream for token: {symboltoken}, session: {sid}")
     
-    # Check market status
     if not is_market_open():
-        print(f"⏰ Market is closed. Rejecting stream request for {symboltoken}")
+        print(f" Market is closed. Rejecting stream request for {symboltoken}")
         socketio.emit("status", {
             "message": "Market is closed. Live streaming not available.",
             "market_open": False
         }, room=sid)
         return
 
-    # Stop existing connection for this session
     if sid in active_sws:
         try:
             active_sws[sid].close_connection()
@@ -468,7 +447,7 @@ def start_stream(data):
 def stop_stream():
     """Handle stop_stream event from frontend"""
     sid = request.sid
-    print(f"🛑 Stopping WebSocket Stream for session: {sid}")
+    print(f" Stopping WebSocket Stream for session: {sid}")
     
     if sid in active_sws:
         try:
@@ -486,7 +465,7 @@ def stop_stream():
 def handle_disconnect():
     """Clean up when client disconnects"""
     sid = request.sid
-    print(f"👋 Client disconnected: {sid}")
+    print(f" Client disconnected: {sid}")
     
     if sid in active_sws:
         try:
@@ -496,7 +475,6 @@ def handle_disconnect():
             pass
 
 
-# ---------- Background Task: Auto-close WebSockets when market closes ----------
 def check_market_close():
     """Periodically check if market has closed and disconnect all WebSockets"""
     while True:
@@ -504,7 +482,7 @@ def check_market_close():
         time.sleep(60)  # Check every minute
         
         if not is_market_open() and active_sws:
-            print("⏰ Market has closed. Disconnecting all active WebSockets...")
+            print(" Market has closed. Disconnecting all active WebSockets...")
             sids_to_close = list(active_sws.keys())
             for sid in sids_to_close:
                 try:
@@ -522,7 +500,6 @@ if __name__ == '__main__':
     try:
         login_smart_api()
         
-        # Start background task to monitor market hours
         market_monitor = threading.Thread(target=check_market_close, daemon=True)
         market_monitor.start()
         
@@ -530,5 +507,4 @@ if __name__ == '__main__':
         logger.error("Application failed to start due to login error.")
         exit(1)
 
-    # Run Flask + SocketIO together
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    socketio.run(app, debug=True, host="0.0.0.0", port=6000)

@@ -1,40 +1,43 @@
-// API Configuration for Backend
-// Use your computer's local IP address for React Native to access the backend
-
-// For Android Emulator: use 10.0.2.2
-// For iOS Simulator: use localhost
-// For Physical Device: use your computer's IP address (192.168.1.5)
-
 import { Platform } from 'react-native';
 
-// Change this based on your testing environment:
-// - 'emulator' for Android Emulator
-// - 'simulator' for iOS Simulator  
-// - 'device' for Physical Device
-const TESTING_ON = 'device'; // Change to 'emulator' or 'simulator' if needed
+// Change this based on your setup
+const TESTING_ON = 'device'; // 'emulator', 'simulator', or 'device'
 
-const getBaseUrl = () => {
-  if (TESTING_ON === 'emulator') {
-    return 'http://10.0.2.2:5000';
-  } else if (TESTING_ON === 'simulator') {
-    return 'http://localhost:5000';
-  } else {
-    // Physical device - use computer's IP
-    return 'http://192.168.1.5:5000';
-  }
+// Your computer's local IP
+const LOCAL_IP = '192.168.1.2';
+
+// Function to get base URL depending on port
+const getBaseUrl = (port) => {
+  if (TESTING_ON === 'emulator') return `http://10.0.2.2:${port}`;
+  if (TESTING_ON === 'simulator') return `http://localhost:${port}`;
+  return `http://${LOCAL_IP}:${port}`; // physical device
 };
 
-export const API_BASE_URL = getBaseUrl();
+// 🔹 Base URLs
+export const AUTH_BASE_URL = getBaseUrl(4000);   // login/register
+export const CONSENT_BASE_URL = getBaseUrl(5000); // consent/session
+export const DATA_BASE_URL = getBaseUrl(6000);   // companies/historical_data
 
-// API Endpoints
+// 🔹 API Endpoints
 export const API_ENDPOINTS = {
-  CREATE_CONSENT: `${API_BASE_URL}/createConsent`,
-  CHECK_USER_CONSENT: `${API_BASE_URL}/checkUserConsent`,
-  CONSENT_CHECK: `${API_BASE_URL}/consentCheck`,
-  SESSION_CHECK: `${API_BASE_URL}/sessionCheck`,
-  GET_TRANSACTIONS: `${API_BASE_URL}/getTransactions`,
-  GET_USER_ACCOUNTS: `${API_BASE_URL}/getUserAccounts`,
-  GET_ACCOUNT_TRANSACTIONS: `${API_BASE_URL}/getAccountTransactions`,
+  // Auth endpoints (port 4000)
+  LOGIN: `${AUTH_BASE_URL}/api/auth/login`,
+  REGISTER: `${AUTH_BASE_URL}/api/auth/register`,
+  VERIFY: `${AUTH_BASE_URL}/api/auth/verify`,
+
+  // Consent & session endpoints (port 5000)
+  CREATE_CONSENT: `${CONSENT_BASE_URL}/createConsent`,
+  CHECK_USER_CONSENT: `${CONSENT_BASE_URL}/checkUserConsent`,
+  CONSENT_CHECK: `${CONSENT_BASE_URL}/consentCheck`,
+  SESSION_CHECK: `${CONSENT_BASE_URL}/sessionCheck`,
+  GET_TRANSACTIONS: `${CONSENT_BASE_URL}/getTransactions`,
+  GET_USER_ACCOUNTS: `${CONSENT_BASE_URL}/getUserAccounts`,
+  GET_ACCOUNT_TRANSACTIONS: `${CONSENT_BASE_URL}/getAccountTransactions`,
+
+  // Data endpoints (port 6000)
+  COMPANIES: `${DATA_BASE_URL}/companies`,
+  HISTORY: `${DATA_BASE_URL}/historical_data`,
+  GET_COMPANYS: `${AUTH_BASE_URL}/get_csv`,
 };
 
-export default API_BASE_URL;
+export default { AUTH_BASE_URL, CONSENT_BASE_URL, DATA_BASE_URL, API_ENDPOINTS };

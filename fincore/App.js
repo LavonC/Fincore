@@ -27,6 +27,9 @@ import MainTabNavigator from "./screens/MainTabNavigator";
 import StockHome from "./screens/Stocks/stockhome";
 import RegistrationScreen from "./screens/Stocks/registrationscreen";
 import LoginScreen from "./screens/Stocks/loginscreen";
+import InsightsScreen from './screens/insightsscreen';
+import AdvisorScreen from './screens/advisor';
+import AdvisorChatScreen from './screens/advisorchat';
 
 const Stack = createNativeStackNavigator();
 
@@ -82,6 +85,11 @@ export default function App() {
         <Stack.Screen name="Stocks" component={StocksScreen} options={{ headerShown: true, title: 'Stocks' }} />
         <Stack.Screen name="AdvisorConnect" component={AdvisorConnectScreen} options={{ headerShown: true, title: 'Advisor Connect' }} />
         <Stack.Screen name="TaxCenter" component={TaxCenterScreen} options={{ headerShown: true, title: 'Tax Center' }} />
+        
+        {/* New Feature Screens */}
+        <Stack.Screen name="Insights" component={InsightsScreen} />
+        <Stack.Screen name="Advisor" component={AdvisorScreen} />
+        <Stack.Screen name="AdvisorChat" component={AdvisorChatScreen} />
       </Stack.Navigator>
 
       <StatusBar style="auto" />

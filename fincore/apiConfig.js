@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 const TESTING_ON = 'device'; // 'emulator', 'simulator', or 'device'
 
 // Your computer's local IP
-const LOCAL_IP = '192.168.1.3';
+const LOCAL_IP = '192.168.1.5';
 
 // Function to get base URL depending on port
 const getBaseUrl = (port) => {

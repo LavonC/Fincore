@@ -249,7 +249,9 @@ const FinancialDashboard = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Account Overview</Text>
-              <Text style={styles.insightLink}>Insight</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Insights')}>
+                <Text style={styles.insightLink}>Insight</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.balanceCard}>

@@ -67,7 +67,7 @@ const ExplorePage = ({ navigation }) => {
       title: 'Advisor Connect',
       description: 'Get personalized financial advice',
       icon: '👥',
-      screen: 'AdvisorConnect',
+      screen: 'Advisor',
       bgColor: '#2d3748',
     },
     {

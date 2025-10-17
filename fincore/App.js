@@ -34,7 +34,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Explore"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',

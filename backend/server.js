@@ -183,7 +183,7 @@ async function sendPhoneOTP(phone, otp) {
     await twilioClient.messages.create({
       body: `Your FinCore verification code is: ${otp}. Valid for 10 minutes.`,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
+      to: `+91${phone}`
     });
     console.log(`✓ SMS OTP sent to ${phone}`);
     return true;

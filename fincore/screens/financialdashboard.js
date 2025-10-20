@@ -249,7 +249,13 @@ const FinancialDashboard = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Account Overview</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Insights')}>
+              <TouchableOpacity onPress={() => {
+                if (currentAccount && currentAccount.id) {
+                  navigation.navigate('Insights', { accountId: currentAccount.id });
+                } else {
+                  Alert.alert('Error', 'Please select an account first');
+                }
+              }}>
                 <Text style={styles.insightLink}>Insight</Text>
               </TouchableOpacity>
             </View>

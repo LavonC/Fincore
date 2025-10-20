@@ -645,12 +645,11 @@ def getAccountTransactions():
 			
 			cursor = connection.cursor(dictionary=True)
 			
-			# Get transactions
+			# Get ALL transactions (removed LIMIT 100)
 			cursor.execute('''
 				SELECT * FROM transactions
 				WHERE bank_account_id = %s
 				ORDER BY transaction_timestamp DESC
-				LIMIT 100
 			''', (account_id,))
 			
 			transactions = cursor.fetchall()

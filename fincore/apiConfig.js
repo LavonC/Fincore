@@ -10,6 +10,7 @@ const SERVER_IPS = {
   CONSENT_IP: '192.168.1.3',   // Port 5000 - AA.py server IP (FIXED: was .5, should be .3)
   DATA_IP: '192.168.1.3',      // Port 6000 - stock/historical server IP (FIXED: was .5, should be .3)
   ADVISOR_IP: '192.168.1.3',   // Port 7000 - advisor.py server IP
+  INSIGHTS_IP: '192.168.1.3',  // Port 8001 - insights.py server IP
 };
 
 // Function to get base URL for specific server
@@ -24,6 +25,7 @@ export const AUTH_BASE_URL = getBaseUrl(4000, SERVER_IPS.AUTH_IP);       // logi
 export const CONSENT_BASE_URL = getBaseUrl(5000, SERVER_IPS.CONSENT_IP); // consent/session (AA.py)
 export const DATA_BASE_URL = getBaseUrl(6000, SERVER_IPS.DATA_IP);       // companies/historical_data
 export const ADVISOR_BASE_URL = getBaseUrl(7000, SERVER_IPS.ADVISOR_IP); // financial advisor AI (advisor.py)
+export const INSIGHTS_BASE_URL = getBaseUrl(8001, SERVER_IPS.INSIGHTS_IP); // financial insights AI (insights.py)
 
 // 🔹 API Endpoints
 export const API_ENDPOINTS = {
@@ -53,6 +55,13 @@ export const API_ENDPOINTS = {
   ADVISOR_LIST_MESSAGES: `${ADVISOR_BASE_URL}/advisor/messages/list`,
   ADVISOR_SEND_MESSAGE: `${ADVISOR_BASE_URL}/advisor/messages/send`,
   ADVISOR_HEALTH: `${ADVISOR_BASE_URL}/advisor/health`,
+
+  // Insights endpoints (port 8000)
+  INSIGHTS_GENERATE: `${INSIGHTS_BASE_URL}/insights/generate`,
+  INSIGHTS_LIST: `${INSIGHTS_BASE_URL}/insights/list`,
+  INSIGHTS_LATEST: `${INSIGHTS_BASE_URL}/insights/latest`,
+  INSIGHTS_FINANCIAL_SUMMARY: `${INSIGHTS_BASE_URL}/insights/financial-summary`,
+  INSIGHTS_HEALTH: `${INSIGHTS_BASE_URL}/insights/health`,
 };
 
-export default { AUTH_BASE_URL, CONSENT_BASE_URL, DATA_BASE_URL, API_ENDPOINTS };
+export default { AUTH_BASE_URL, CONSENT_BASE_URL, DATA_BASE_URL, ADVISOR_BASE_URL, INSIGHTS_BASE_URL, API_ENDPOINTS };

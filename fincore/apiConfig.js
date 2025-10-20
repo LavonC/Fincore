@@ -3,20 +3,27 @@ import { Platform } from 'react-native';
 // Change this based on your setup
 const TESTING_ON = 'device'; // 'emulator', 'simulator', or 'device'
 
-// Your computer's local IP
-const LOCAL_IP = '192.168.1.5';
+// ⚠️ CONFIGURE YOUR SERVER IPs HERE ⚠️
+// All servers running on the same computer: 192.168.1.3
+const SERVER_IPS = {
+  AUTH_IP: '192.168.1.3',      // Port 4000 - login/register server IP
+  CONSENT_IP: '192.168.1.3',   // Port 5000 - AA.py server IP (FIXED: was .5, should be .3)
+  DATA_IP: '192.168.1.3',      // Port 6000 - stock/historical server IP (FIXED: was .5, should be .3)
+  ADVISOR_IP: '192.168.1.3',   // Port 7000 - advisor.py server IP
+};
 
-// Function to get base URL depending on port
-const getBaseUrl = (port) => {
+// Function to get base URL for specific server
+const getBaseUrl = (port, serverIP) => {
   if (TESTING_ON === 'emulator') return `http://10.0.2.2:${port}`;
   if (TESTING_ON === 'simulator') return `http://localhost:${port}`;
-  return `http://${LOCAL_IP}:${port}`; // physical device
+  return `http://${serverIP}:${port}`; // physical device - ⚠️ Must use http:// not https://
 };
 
 // 🔹 Base URLs
-export const AUTH_BASE_URL = getBaseUrl(4000);   // login/register
-export const CONSENT_BASE_URL = getBaseUrl(5000); // consent/session
-export const DATA_BASE_URL = getBaseUrl(6000);   // companies/historical_data
+export const AUTH_BASE_URL = getBaseUrl(4000, SERVER_IPS.AUTH_IP);       // login/register (FIXED: was 3000, should be 4000)
+export const CONSENT_BASE_URL = getBaseUrl(5000, SERVER_IPS.CONSENT_IP); // consent/session (AA.py)
+export const DATA_BASE_URL = getBaseUrl(6000, SERVER_IPS.DATA_IP);       // companies/historical_data
+export const ADVISOR_BASE_URL = getBaseUrl(7000, SERVER_IPS.ADVISOR_IP); // financial advisor AI (advisor.py)
 
 // 🔹 API Endpoints
 export const API_ENDPOINTS = {
@@ -38,6 +45,14 @@ export const API_ENDPOINTS = {
   COMPANIES: `${DATA_BASE_URL}/companies`,
   HISTORY: `${DATA_BASE_URL}/historical_data`,
   GET_COMPANYS: `${AUTH_BASE_URL}/get_csv`,
+
+  // Advisor endpoints (port 7000)
+  ADVISOR_LIST_CHATS: `${ADVISOR_BASE_URL}/advisor/chats/list`,
+  ADVISOR_CREATE_CHAT: `${ADVISOR_BASE_URL}/advisor/chats/create`,
+  ADVISOR_DELETE_CHAT: `${ADVISOR_BASE_URL}/advisor/chats/delete`,
+  ADVISOR_LIST_MESSAGES: `${ADVISOR_BASE_URL}/advisor/messages/list`,
+  ADVISOR_SEND_MESSAGE: `${ADVISOR_BASE_URL}/advisor/messages/send`,
+  ADVISOR_HEALTH: `${ADVISOR_BASE_URL}/advisor/health`,
 };
 
 export default { AUTH_BASE_URL, CONSENT_BASE_URL, DATA_BASE_URL, API_ENDPOINTS };

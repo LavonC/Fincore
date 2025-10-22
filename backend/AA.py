@@ -1,5 +1,6 @@
 # ngrok http 5000 --url=helpful-vastly-shark.ngrok-free.app 
 
+import sys
 import requests
 from flask import Flask, request, abort, jsonify
 from flask_cors import CORS
@@ -10,6 +11,10 @@ import os
 import traceback
 from dotenv import load_dotenv
 
+# Force stdout/stderr to flush immediately (critical for Render logs)
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 load_dotenv()
 
 # SETU API Credentials (use environment variables for production)
@@ -17,8 +22,30 @@ CLIENT_ID = os.getenv('SETU_CLIENT_ID', "351a73a0-153c-4dc0-9de2-fa01ce842a41")
 CLIENT_SECRET = os.getenv('SETU_CLIENT_SECRET', "nA4LJrbWBnDoZS3jYtRUP2pkxkafQjP1")
 PRODUCT_INSTANCE_ID = os.getenv('SETU_PRODUCT_INSTANCE_ID', "9345cc4b-3ca5-4051-af5c-e2b618dcfcfe")
 
+print("=" * 80, flush=True)
+print("🚀 FINCORE AA SERVICE STARTING", flush=True)
+print(f"   SETU Client ID: {CLIENT_ID[:20]}...", flush=True)
+print(f"   Database Host: {os.getenv('DB_HOST', 'localhost')}", flush=True)
+print("=" * 80, flush=True)
+
 app = Flask(__name__)
 CORS(app)
+
+# Global error handler to catch ALL exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+	print("=" * 80, flush=True)
+	print("🔴 UNHANDLED EXCEPTION", flush=True)
+	print("=" * 80, flush=True)
+	print(f"Exception type: {type(e).__name__}", flush=True)
+	print(f"Exception message: {str(e)}", flush=True)
+	print(f"Traceback:\n{traceback.format_exc()}", flush=True)
+	print("=" * 80, flush=True)
+	return jsonify({
+		'error': 'Internal server error',
+		'message': str(e),
+		'type': type(e).__name__
+	}), 500
 
 # Database configuration
 DB_CONFIG = {
@@ -314,39 +341,103 @@ def handle_session_notification(data):
 @app.route('/createConsent', methods=['POST'])
 def createConsent():
 	"""Create a new consent for a user"""
+	print("=" * 80, flush=True)
+	print("🔵 CREATE CONSENT ENDPOINT HIT", flush=True)
+	print("=" * 80, flush=True)
+	
 	if request.method == 'POST':
 		try:
+			print("📦 Raw request data:", request.get_data(), flush=True)
+			print("📦 Request JSON:", request.json, flush=True)
+			
 			user_email = request.json.get('email')
 			consent_days = request.json.get('consentDays', 365)  # Default 365 days
 			data_range_from = request.json.get('dataRangeFrom')  # ISO format from frontend
 			data_range_to = request.json.get('dataRangeTo')  # ISO format from frontend
 			
+			print(f"📝 Extracted values:")
+			print(f"   Email: {user_email}")
+			print(f"   Consent days: {consent_days}")
+			print(f"   Date range from: {data_range_from}")
+			print(f"   Date range to: {data_range_to}")
+			
 			if not user_email:
+				print("❌ Email is required")
 				return jsonify({'error': 'Email is required'}), 400
 			
 			print(f"📝 Creating consent for: {user_email}")
-			print(f"   Consent days: {consent_days}")
-			print(f"   Date range: {data_range_from} to {data_range_to}")
 			
 			# Convert ISO format to MySQL DATETIME format
 			def iso_to_mysql_datetime(iso_string):
-				"""Convert ISO 8601 format to MySQL DATETIME format"""
+				"""
+				Convert ISO 8601 format to MySQL DATETIME format
+				Input: YYYY-MM-DDTHH:mm:ss.mmmZ (SETU format)
+				Output: YYYY-MM-DD HH:MM:SS (MySQL format)
+				"""
+				if not iso_string:
+					print("⚠️  No datetime string provided")
+					return None
+				try:
+					print(f"   Converting: {iso_string}")
+					# Remove 'Z' suffix and parse
+					# Handle both formats: 2023-01-01T00:00:00Z and 2023-01-01T00:00:00.000Z
+					iso_clean = iso_string.replace('Z', '').replace('T', ' ')
+					
+					# If has milliseconds, remove them (MySQL DATETIME doesn't need them)
+					if '.' in iso_clean:
+						iso_clean = iso_clean.split('.')[0]
+					
+					# Validate format
+					datetime.strptime(iso_clean, '%Y-%m-%d %H:%M:%S')
+					
+					print(f"   Result: {iso_clean}")
+					return iso_clean
+					
+				except Exception as e:
+					print(f"❌ Error converting datetime: {iso_string} - {e}")
+					print(f"   Traceback: {traceback.format_exc()}")
+					return None
+			
+			def ensure_setu_format(iso_string):
+				"""
+				Ensure datetime is in SETU format: YYYY-MM-DDTHH:mm:ss.mmmZ
+				"""
 				if not iso_string:
 					return None
 				try:
-					# Parse ISO format: 2023-01-01T00:00:00Z or 2023-01-01T00:00:00.000Z
-					dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
-					# Return MySQL format: YYYY-MM-DD HH:MM:SS
-					return dt.strftime('%Y-%m-%d %H:%M:%S')
+					# If already has milliseconds and Z, return as is
+					if '.000Z' in iso_string or 'Z' in iso_string:
+						# Make sure it has milliseconds
+						if 'Z' in iso_string and '.000Z' not in iso_string:
+							iso_string = iso_string.replace('Z', '.000Z')
+						return iso_string
+					
+					# Otherwise, add them
+					if 'T' in iso_string:
+						return iso_string + '.000Z'
+					else:
+						# Convert MySQL format to SETU format
+						return iso_string.replace(' ', 'T') + '.000Z'
+						
 				except Exception as e:
-					print(f"⚠️  Error converting datetime: {iso_string} - {e}")
-					return None
+					print(f"❌ Error formatting for SETU: {iso_string} - {e}")
+					return iso_string
 			
 			# Convert dates for MySQL storage
+			print("🔄 Converting dates for MySQL storage...")
 			mysql_date_from = iso_to_mysql_datetime(data_range_from) or '2023-01-01 00:00:00'
 			mysql_date_to = iso_to_mysql_datetime(data_range_to) or '2025-12-31 23:59:59'
 			
-			print(f"   MySQL dates: {mysql_date_from} to {mysql_date_to}")
+			print(f"   MySQL from: {mysql_date_from}")
+			print(f"   MySQL to: {mysql_date_to}")
+			
+			# Ensure SETU format for API calls
+			print("🔄 Ensuring SETU format for API...")
+			setu_date_from = ensure_setu_format(data_range_from) or '2023-01-01T00:00:00.000Z'
+			setu_date_to = ensure_setu_format(data_range_to) or '2025-12-31T23:59:59.000Z'
+			
+			print(f"   SETU from: {setu_date_from}")
+			print(f"   SETU to: {setu_date_to}")
 			
 			# Get user details from database
 			connection = get_db_connection()
@@ -373,14 +464,14 @@ def createConsent():
 			print("🔑 Getting SETU access token...")
 			access_token = get_token()
 			
-			# Create consent with date parameters (SETU API expects ISO format)
+			# Create consent with date parameters (SETU API expects YYYY-MM-DDTHH:mm:ss.mmmZ format)
 			print("📤 Creating consent with SETU...")
 			consent_id, consent_url = create_consent(
 				access_token, 
 				phone_number, 
 				consent_days,
-				data_range_from or '2023-01-01T00:00:00Z',  # Pass ISO format to SETU API
-				data_range_to or '2025-12-31T23:59:59Z'
+				setu_date_from,  # SETU format with milliseconds
+				setu_date_to
 			)
 			
 			print(f"✓ Consent created - ID: {consent_id}")

@@ -2,16 +2,16 @@
 Database Migration: Create Insights Tables
 Creates tables for storing AI-generated financial insights
 """
-
+import os
 import mysql.connector
 from datetime import datetime
 
 # Database configuration
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'database': 'dbms'
+    'host': 'bknsjtealwda26vlfp4k-mysql.services.clever-cloud.com',
+    'user': 'ukcl0jlhepkfb03y',
+    'password': 'oj1dcCNJNgh1Q7ztjjz3',
+    'database': 'bknsjtealwda26vlfp4k'
 }
 
 def migrate():

@@ -7,6 +7,7 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
 import os
+import traceback
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -132,6 +133,58 @@ def init_db():
     finally:
         cursor.close()
         connection.close()
+
+# ==========================================
+# HEALTH CHECK & ROOT ROUTES
+# ==========================================
+
+@app.route('/', methods=['GET'])
+def home():
+	"""Root route for health checks"""
+	return jsonify({
+		'status': 'online',
+		'service': 'FinCore Account Aggregator API',
+		'version': '1.0.0',
+		'endpoints': {
+			'webhook': '/webhook',
+			'createConsent': '/createConsent',
+			'checkUserConsent': '/checkUserConsent',
+			'consentCheck': '/consentCheck',
+			'sessionCheck': '/sessionCheck',
+			'getTransactions': '/getTransactions',
+			'getUserAccounts': '/getUserAccounts'
+		}
+	}), 200
+
+@app.route('/health', methods=['GET'])
+def health():
+	"""Health check endpoint for Render"""
+	try:
+		# Check database connection
+		connection = get_db_connection()
+		if connection:
+			connection.close()
+			return jsonify({
+				'status': 'healthy',
+				'database': 'connected',
+				'timestamp': datetime.now().isoformat()
+			}), 200
+		else:
+			return jsonify({
+				'status': 'unhealthy',
+				'database': 'disconnected',
+				'timestamp': datetime.now().isoformat()
+			}), 500
+	except Exception as e:
+		return jsonify({
+			'status': 'unhealthy',
+			'error': str(e),
+			'timestamp': datetime.now().isoformat()
+		}), 500
+
+# ==========================================
+# WEBHOOK ROUTES
+# ==========================================
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -363,7 +416,10 @@ def createConsent():
 			
 		except Exception as e:
 			error_msg = str(e)
+			error_trace = traceback.format_exc()
+			
 			print(f"❌ Error creating consent: {error_msg}")
+			print(f"📋 Full traceback:\n{error_trace}")
 			
 			# Return more specific error message
 			if "Database" in error_msg or "MySQL" in error_msg:

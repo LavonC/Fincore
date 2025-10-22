@@ -405,22 +405,29 @@ def createConsent():
 				if not iso_string:
 					return None
 				try:
-					# If already has milliseconds and Z, return as is
-					if '.000Z' in iso_string or 'Z' in iso_string:
-						# Make sure it has milliseconds
-						if 'Z' in iso_string and '.000Z' not in iso_string:
-							iso_string = iso_string.replace('Z', '.000Z')
+					# If already has milliseconds (any digits) and Z, return as is
+					if 'T' in iso_string and '.' in iso_string and 'Z' in iso_string:
+						# Already in correct format like 2025-10-22T15:43:43.391Z
 						return iso_string
 					
-					# Otherwise, add them
-					if 'T' in iso_string:
+					# If has Z but no milliseconds, add .000
+					if 'Z' in iso_string and '.' not in iso_string:
+						# 2025-10-22T15:43:00Z → 2025-10-22T15:43:00.000Z
+						return iso_string.replace('Z', '.000Z')
+					
+					# If has T but no Z, add .000Z
+					if 'T' in iso_string and 'Z' not in iso_string:
 						return iso_string + '.000Z'
-					else:
-						# Convert MySQL format to SETU format
+					
+					# Convert MySQL format to SETU format
+					if ' ' in iso_string:
 						return iso_string.replace(' ', 'T') + '.000Z'
+					
+					# Fallback
+					return iso_string
 						
 				except Exception as e:
-					print(f"❌ Error formatting for SETU: {iso_string} - {e}")
+					print(f"❌ Error formatting for SETU: {iso_string} - {e}", flush=True)
 					return iso_string
 			
 			# Convert dates for MySQL storage
@@ -884,24 +891,34 @@ def get_token():
 			"Content-Type": "application/json"
 		}
 
+		print(f"🔑 Requesting SETU token...", flush=True)
+		print(f"   URL: {url}", flush=True)
+		print(f"   Client ID: {CLIENT_ID[:20]}...", flush=True)
+		print(f"   Secret: {CLIENT_SECRET[:10]}...", flush=True)
+		
 		response = requests.post(url, json=payload, headers=headers, timeout=10)
+		
+		print(f"   Response Status: {response.status_code}", flush=True)
+		print(f"   Response Headers: {dict(response.headers)}", flush=True)
+		print(f"   Response Body: {response.text[:500]}", flush=True)
+		
 		response.raise_for_status()  # Raise exception for bad status codes
 		
 		data = response.json()
 		
 		if 'access_token' not in data:
-			print(f"❌ SETU Auth Error: No access_token in response: {data}")
+			print(f"❌ SETU Auth Error: No access_token in response: {data}", flush=True)
 			raise Exception("Failed to get access token from SETU API")
 		
 		access_token = data['access_token']
-		print(f"✓ SETU access token obtained")
+		print(f"✓ SETU access token obtained", flush=True)
 		return access_token
 		
 	except requests.exceptions.Timeout:
-		print("❌ SETU API timeout during authentication")
+		print("❌ SETU API timeout during authentication", flush=True)
 		raise Exception("SETU API timeout - please try again")
 	except requests.exceptions.RequestException as e:
-		print(f"❌ SETU API request error: {e}")
+		print(f"❌ SETU API request error: {e}", flush=True)
 		raise Exception(f"SETU API connection error: {str(e)}")
 	except Exception as e:
 		print(f"❌ Error getting SETU token: {e}")

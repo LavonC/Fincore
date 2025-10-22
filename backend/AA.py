@@ -878,51 +878,37 @@ def getAccountTransactions():
 	
 def get_token():
 	"""Get access token from Setu"""
+	url = "https://orgservice-prod.setu.co/v1/users/login"
+
+	payload = {
+		"clientID": CLIENT_ID,
+		"grant_type": "client_credentials",
+		"secret": CLIENT_SECRET
+	}
+	headers = {
+		"client": "bridge",
+		"Content-Type": "application/json"
+	}
+
+	print(f"🔑 Requesting SETU token from {url}...", flush=True)
+	print(f"   Client ID: {CLIENT_ID[:20]}...", flush=True)
+	
 	try:
-		# Use PRODUCTION auth endpoint (this works with sandbox FIU endpoints)
-		url = "https://orgservice-prod.setu.co/v1/users/login"
-
-		payload = {
-			"clientID": CLIENT_ID,
-			"grant_type": "client_credentials",
-			"secret": CLIENT_SECRET
-		}
-		headers = {
-			"client": "bridge",
-			"Content-Type": "application/json"
-		}
-
-		print(f"🔑 Requesting SETU token...", flush=True)
-		print(f"   URL: {url}", flush=True)
-		print(f"   Client ID: {CLIENT_ID[:20]}...", flush=True)
-		print(f"   Secret: {CLIENT_SECRET[:10]}...", flush=True)
-		
-		response = requests.post(url, json=payload, headers=headers, timeout=10)
-		
+		response = requests.request("POST", url, json=payload, headers=headers)
 		print(f"   Response Status: {response.status_code}", flush=True)
-		print(f"   Response Headers: {dict(response.headers)}", flush=True)
 		print(f"   Response Body: {response.text[:500]}", flush=True)
 		
-		response.raise_for_status()  # Raise exception for bad status codes
+		if response.status_code == 403:
+			print("❌ 403 Forbidden - Render's IP might need whitelisting in SETU dashboard", flush=True)
+			print(f"   This is a SETU/AWS load balancer blocking the request", flush=True)
+			raise Exception("SETU API blocked request (403) - Check IP whitelisting in SETU dashboard")
 		
 		data = response.json()
-		
-		if 'access_token' not in data:
-			print(f"❌ SETU Auth Error: No access_token in response: {data}", flush=True)
-			raise Exception("Failed to get access token from SETU API")
-		
 		access_token = data['access_token']
 		print(f"✓ SETU access token obtained", flush=True)
 		return access_token
-		
-	except requests.exceptions.Timeout:
-		print("❌ SETU API timeout during authentication", flush=True)
-		raise Exception("SETU API timeout - please try again")
-	except requests.exceptions.RequestException as e:
-		print(f"❌ SETU API request error: {e}", flush=True)
-		raise Exception(f"SETU API connection error: {str(e)}")
 	except Exception as e:
-		print(f"❌ Error getting SETU token: {e}")
+		print(f"❌ Error getting SETU token: {e}", flush=True)
 		raise
 
 def create_consent(access_token, phone_number, consent_days=365, data_range_from=None, data_range_to=None):

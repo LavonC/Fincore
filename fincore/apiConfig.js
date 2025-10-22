@@ -13,7 +13,7 @@ const PRODUCTION_URLS = {
   HISTORICAL_URL: 'https://fincore-historical.onrender.com', // Port 4000 - historicalserver.py
   DATA_URL: 'https://fincore-ml.onrender.com',            // Port 6000 - ml.py
   ADVISOR_URL: 'https://fincore-1.onrender.com',    // Port 7000 - advisor.py
-  INSIGHTS_URL: 'https://fincore-insights.onrender.com',  // Port 8001 - insights.py
+  INSIGHTS_URL: 'https://fincore-2.onrender.com',  // Port 8001 - insights.py
 };
 
 // =====================================

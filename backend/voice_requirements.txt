@@ -1,7 +1,17 @@
-# Voice Assistant Additional Dependencies
-# Add these to your existing requirements.txt
+# Voice Assistant Dependencies for Render.com
+# These are the ONLY dependencies needed for server-side voice processing
 
-SpeechRecognition==3.10.1  # FREE speech-to-text
-gTTS==2.5.0  # FREE text-to-speech (Google Text-to-Speech)
-pydub==0.25.1  # Audio file conversion
-pyaudio==0.2.14  # Audio processing (optional, for microphone input)
+# Core dependencies from main requirements.txt (must be included)
+flask==3.0.0
+flask-cors==4.0.0
+python-dotenv==1.0.0
+google-generativeai>=0.8.0
+
+# Voice-specific dependencies
+SpeechRecognition==3.10.1  # Speech-to-text (Gemini/Vosk/AssemblyAI)
+gTTS==2.5.0  # Text-to-speech (Google TTS)
+pydub==0.25.1  # Audio file processing (mp3, wav, m4a)
+
+# NOTE: PyAudio is NOT needed on server!
+# PyAudio is only for recording from microphone (done on client/frontend)
+# Server receives already-recorded audio files from frontend

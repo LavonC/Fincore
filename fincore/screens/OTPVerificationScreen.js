@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import API_URL from '../config';
+import config from '../config';
+
+const API_URL = config.API_BASE_URL;
 
 const OTPVerificationScreen = ({ route, navigation }) => {
   const { userData } = route.params;

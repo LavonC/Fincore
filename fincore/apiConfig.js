@@ -4,11 +4,11 @@ import { Platform } from 'react-native';
 const TESTING_ON = 'device'; // 'emulator', 'simulator', or 'device'
 
 // ⚠️ CONFIGURE YOUR SERVER IPs HERE ⚠️
-// All servers running on the same computer: 192.168.1.3
+// All servers running on the same computer: 192.168.137.1
 const SERVER_IPS = {
-  AUTH_IP: '192.168.1.3',      // Port 4000 - login/register server IP
-  CONSENT_IP: '192.168.1.3',   // Port 5000 - AA.py server IP (FIXED: was .5, should be .3)
-  DATA_IP: '192.168.1.3',      // Port 6000 - stock/historical server IP (FIXED: was .5, should be .3)
+  AUTH_IP: '1192.168.1.3',      // Port 3000 - login/register server IP (server.js)
+  CONSENT_IP: '192.168.1.3',   // Port 5000 - AA.py server IP
+  DATA_IP: '192.168.1.3',      // Port 6000 - stock/historical server IP
   ADVISOR_IP: '192.168.1.3',   // Port 7000 - advisor.py server IP
   INSIGHTS_IP: '192.168.1.3',  // Port 8001 - insights.py server IP
 };
@@ -21,7 +21,7 @@ const getBaseUrl = (port, serverIP) => {
 };
 
 // 🔹 Base URLs
-export const AUTH_BASE_URL = getBaseUrl(4000, SERVER_IPS.AUTH_IP);       // login/register (FIXED: was 3000, should be 4000)
+export const AUTH_BASE_URL = getBaseUrl(3000, SERVER_IPS.AUTH_IP);       // login/register (server.js on port 3000)
 export const CONSENT_BASE_URL = getBaseUrl(5000, SERVER_IPS.CONSENT_IP); // consent/session (AA.py)
 export const DATA_BASE_URL = getBaseUrl(6000, SERVER_IPS.DATA_IP);       // companies/historical_data
 export const ADVISOR_BASE_URL = getBaseUrl(7000, SERVER_IPS.ADVISOR_IP); // financial advisor AI (advisor.py)

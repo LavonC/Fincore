@@ -235,7 +235,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
     // Generate OTPs
     const emailOTP = generateOTP();
-    const phoneOTP = generateOTP();
+    const phoneOTP = '123456'; //generateOTP(); // For testing, fixed OTP
 
     // Store OTPs with expiration (10 minutes)
     const otpData = {
@@ -435,7 +435,7 @@ const startServer = async () => {
 
     // Sync database (creates tables if they don't exist)
     await sequelize.sync({ 
-      alter: process.env.NODE_ENV === 'development',
+      alter: false, // Disabled to prevent "too many keys" error
       force: false // Change to true to drop and recreate tables (USE CAREFULLY!)
     });
     console.log('✓ Database synchronized successfully');

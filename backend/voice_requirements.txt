@@ -1,0 +1,7 @@
+# Voice Assistant Additional Dependencies
+# Add these to your existing requirements.txt
+
+SpeechRecognition==3.10.1  # FREE speech-to-text
+gTTS==2.5.0  # FREE text-to-speech (Google Text-to-Speech)
+pydub==0.25.1  # Audio file conversion
+pyaudio==0.2.14  # Audio processing (optional, for microphone input)

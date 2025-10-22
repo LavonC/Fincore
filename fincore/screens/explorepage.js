@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,31 @@ import {
   Alert,
   StatusBar,
   Platform,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_ENDPOINTS } from '../apiConfig';
+import { Audio } from 'expo-av';
+import * as Speech from 'expo-speech';
+import config from '../config';
 
 const ExplorePage = ({ navigation }) => {
+  // Voice assistant state
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [hasPermission, setHasPermission] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  // Request audio permissions on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
   // Handle back button press - prompt user to exit app
   useEffect(() => {
     const backAction = () => {
@@ -152,6 +172,143 @@ const ExplorePage = ({ navigation }) => {
     }
   };
 
+  // Voice Assistant Functions
+  const startRecording = async () => {
+    if (!hasPermission) {
+      Alert.alert('Permission Required', 'Please grant microphone permission');
+      return;
+    }
+
+    try {
+      console.log('Starting recording...');
+      setIsRecording(true);
+
+      // Animate button - glow blue while recording
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1.2,
+          useNativeDriver: true,
+        }),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(glowAnim, {
+              toValue: 1,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 0,
+              duration: 800,
+              useNativeDriver: true,
+            }),
+          ])
+        ),
+      ]).start();
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(recording);
+      console.log('Recording started');
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      setIsRecording(false);
+      glowAnim.stopAnimation();
+      scaleAnim.setValue(1);
+    }
+  };
+
+  const stopRecording = async () => {
+    console.log('Stopping recording...');
+    setIsRecording(false);
+    glowAnim.stopAnimation();
+
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+      console.log('Recording stopped, URI:', uri);
+
+      // Reset scale, keep processing glow
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+
+      // Process the audio
+      await processAudioInput(uri);
+    } catch (err) {
+      console.error('Error stopping recording:', err);
+      scaleAnim.setValue(1);
+      glowAnim.setValue(0);
+    }
+  };
+
+  const processAudioInput = async (audioUri) => {
+    setIsProcessing(true);
+
+    // Glow green while processing
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    try {
+      const formData = new FormData();
+      formData.append('audio', {
+        uri: audioUri,
+        type: 'audio/m4a',
+        name: 'recording.m4a',
+      });
+
+      const response = await fetch(`${config.VOICE_ASSISTANT_URL}/voice-assistant/process`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Play audio response
+        Speech.speak(data.response, {
+          language: 'en-US',
+          pitch: 1.0,
+          rate: 0.9,
+        });
+      } else {
+        Alert.alert('Error', data.error || 'Failed to process audio');
+      }
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      Alert.alert('Error', 'Failed to connect to voice assistant');
+    } finally {
+      setIsProcessing(false);
+      glowAnim.stopAnimation();
+      glowAnim.setValue(0);
+    }
+  };
+
   return (
     <View style={styles.outerContainer}>
       <StatusBar 
@@ -205,21 +362,49 @@ const ExplorePage = ({ navigation }) => {
 
       {/* Voice Assistant Button Area */}
       <View style={styles.fabContainer}>
+        <Animated.View
+          style={[
+            styles.fabGlow,
+            {
+              opacity: glowAnim,
+              backgroundColor: isRecording ? '#3b82f6' : isProcessing ? '#10b981' : 'transparent',
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        />
         <TouchableOpacity 
-          style={styles.fab}
+          style={[
+            styles.fab,
+            isRecording && styles.fabRecording,
+            isProcessing && styles.fabProcessing,
+          ]}
           activeOpacity={0.8}
-          onPress={() => {
-            // Add your voice assistant action here
-            Alert.alert('Voice Assistant', 'Voice assistant feature coming soon!');
-          }}
+          onPressIn={startRecording}
+          onPressOut={stopRecording}
+          disabled={isProcessing}
         >
           <View style={styles.voiceWaveform}>
-            <View style={[styles.wavBar, { height: 12 }]} />
-            <View style={[styles.wavBar, { height: 20 }]} />
-            <View style={[styles.wavBar, { height: 16 }]} />
-            <View style={[styles.wavBar, { height: 24 }]} />
-            <View style={[styles.wavBar, { height: 18 }]} />
-            <View style={[styles.wavBar, { height: 14 }]} />
+            {isRecording ? (
+              <>
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 12 }]} />
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 20 }]} />
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 16 }]} />
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 24 }]} />
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 18 }]} />
+                <View style={[styles.wavBar, styles.wavBarActive, { height: 14 }]} />
+              </>
+            ) : isProcessing ? (
+              <Text style={styles.processingText}>...</Text>
+            ) : (
+              <>
+                <View style={[styles.wavBar, { height: 12 }]} />
+                <View style={[styles.wavBar, { height: 20 }]} />
+                <View style={[styles.wavBar, { height: 16 }]} />
+                <View style={[styles.wavBar, { height: 24 }]} />
+                <View style={[styles.wavBar, { height: 18 }]} />
+                <View style={[styles.wavBar, { height: 14 }]} />
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -339,6 +524,14 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingBottom: 24,
     alignItems: 'center',
+    position: 'relative',
+  },
+  fabGlow: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    top: 10,
   },
   fab: {
     width: 56,
@@ -352,6 +545,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    zIndex: 10,
+  },
+  fabRecording: {
+    backgroundColor: '#3b82f6', // Blue while recording
+    shadowColor: '#3b82f6',
+  },
+  fabProcessing: {
+    backgroundColor: '#10b981', // Green while processing
+    shadowColor: '#10b981',
   },
   voiceWaveform: {
     flexDirection: 'row',
@@ -363,6 +565,14 @@ const styles = StyleSheet.create({
     width: 3,
     backgroundColor: '#1a1f2e',
     borderRadius: 2,
+  },
+  wavBarActive: {
+    backgroundColor: '#ffffff', // White bars while recording
+  },
+  processingText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
 

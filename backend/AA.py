@@ -1,6 +1,3 @@
-CLIENT_ID = "351a73a0-153c-4dc0-9de2-fa01ce842a41"
-CLIENT_SECRET = "nA4LJrbWBnDoZS3jYtRUP2pkxkafQjP1"
-PRODUCT_INSTANCE_ID = "9345cc4b-3ca5-4051-af5c-e2b618dcfcfe"
 # ngrok http 5000 --url=helpful-vastly-shark.ngrok-free.app 
 
 import requests
@@ -13,6 +10,11 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# SETU API Credentials (use environment variables for production)
+CLIENT_ID = os.getenv('SETU_CLIENT_ID', "351a73a0-153c-4dc0-9de2-fa01ce842a41")
+CLIENT_SECRET = os.getenv('SETU_CLIENT_SECRET', "nA4LJrbWBnDoZS3jYtRUP2pkxkafQjP1")
+PRODUCT_INSTANCE_ID = os.getenv('SETU_PRODUCT_INSTANCE_ID', "9345cc4b-3ca5-4051-af5c-e2b618dcfcfe")
 
 app = Flask(__name__)
 CORS(app)
@@ -269,6 +271,10 @@ def createConsent():
 			if not user_email:
 				return jsonify({'error': 'Email is required'}), 400
 			
+			print(f"📝 Creating consent for: {user_email}")
+			print(f"   Consent days: {consent_days}")
+			print(f"   Date range: {data_range_from} to {data_range_to}")
+			
 			# Convert ISO format to MySQL DATETIME format
 			def iso_to_mysql_datetime(iso_string):
 				"""Convert ISO 8601 format to MySQL DATETIME format"""
@@ -279,16 +285,20 @@ def createConsent():
 					dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
 					# Return MySQL format: YYYY-MM-DD HH:MM:SS
 					return dt.strftime('%Y-%m-%d %H:%M:%S')
-				except:
+				except Exception as e:
+					print(f"⚠️  Error converting datetime: {iso_string} - {e}")
 					return None
 			
 			# Convert dates for MySQL storage
 			mysql_date_from = iso_to_mysql_datetime(data_range_from) or '2023-01-01 00:00:00'
 			mysql_date_to = iso_to_mysql_datetime(data_range_to) or '2025-12-31 23:59:59'
 			
+			print(f"   MySQL dates: {mysql_date_from} to {mysql_date_to}")
+			
 			# Get user details from database
 			connection = get_db_connection()
 			if not connection:
+				print("❌ Database connection failed")
 				return jsonify({'error': 'Database connection failed'}), 500
 			
 			cursor = connection.cursor(dictionary=True)
@@ -296,6 +306,7 @@ def createConsent():
 			user = cursor.fetchone()
 			
 			if not user:
+				print(f"❌ User not found: {user_email}")
 				cursor.close()
 				connection.close()
 				return jsonify({'error': 'User not found'}), 404
@@ -303,10 +314,14 @@ def createConsent():
 			user_id = user['id']
 			phone_number = user['phone']
 			
+			print(f"✓ User found - ID: {user_id}, Phone: {phone_number}")
+			
 			# Get access token
+			print("🔑 Getting SETU access token...")
 			access_token = get_token()
 			
 			# Create consent with date parameters (SETU API expects ISO format)
+			print("📤 Creating consent with SETU...")
 			consent_id, consent_url = create_consent(
 				access_token, 
 				phone_number, 
@@ -314,6 +329,9 @@ def createConsent():
 				data_range_from or '2023-01-01T00:00:00Z',  # Pass ISO format to SETU API
 				data_range_to or '2025-12-31T23:59:59Z'
 			)
+			
+			print(f"✓ Consent created - ID: {consent_id}")
+			print(f"💾 Storing consent in database...")
 			
 			# Store consent in database (MySQL DATETIME format)
 			cursor.execute('''
@@ -335,6 +353,8 @@ def createConsent():
 			cursor.close()
 			connection.close()
 			
+			print(f"✓ Consent stored successfully")
+			
 			return jsonify({
 				'success': True,
 				'consentId': consent_id, 
@@ -342,8 +362,16 @@ def createConsent():
 			}), 200
 			
 		except Exception as e:
-			print(f"Error creating consent: {e}")
-			return jsonify({'error': str(e)}), 500
+			error_msg = str(e)
+			print(f"❌ Error creating consent: {error_msg}")
+			
+			# Return more specific error message
+			if "Database" in error_msg or "MySQL" in error_msg:
+				return jsonify({'error': 'Database error: ' + error_msg}), 500
+			elif "SETU" in error_msg or "API" in error_msg:
+				return jsonify({'error': 'API error: ' + error_msg}), 500
+			else:
+				return jsonify({'error': error_msg}), 500
 	else:
 		return jsonify({'error': 'Method not allowed'}), 400
 
@@ -696,58 +724,110 @@ def getAccountTransactions():
 	
 def get_token():
 	"""Get access token from Setu"""
-	url = "https://orgservice-prod.setu.co/v1/users/login"
+	try:
+		url = "https://orgservice-prod.setu.co/v1/users/login"
 
-	payload = {
-		"clientID": CLIENT_ID,
-		"grant_type": "client_credentials",
-		"secret": CLIENT_SECRET
-	}
-	headers = {
-		"client": "bridge",
-		"Content-Type": "application/json"
-	}
+		payload = {
+			"clientID": CLIENT_ID,
+			"grant_type": "client_credentials",
+			"secret": CLIENT_SECRET
+		}
+		headers = {
+			"client": "bridge",
+			"Content-Type": "application/json"
+		}
 
-	response = requests.request("POST", url, json=payload, headers=headers).json()
-	access_token = response['access_token']
-	return access_token
+		response = requests.post(url, json=payload, headers=headers, timeout=10)
+		response.raise_for_status()  # Raise exception for bad status codes
+		
+		data = response.json()
+		
+		if 'access_token' not in data:
+			print(f"❌ SETU Auth Error: No access_token in response: {data}")
+			raise Exception("Failed to get access token from SETU API")
+		
+		access_token = data['access_token']
+		print(f"✓ SETU access token obtained")
+		return access_token
+		
+	except requests.exceptions.Timeout:
+		print("❌ SETU API timeout during authentication")
+		raise Exception("SETU API timeout - please try again")
+	except requests.exceptions.RequestException as e:
+		print(f"❌ SETU API request error: {e}")
+		raise Exception(f"SETU API connection error: {str(e)}")
+	except Exception as e:
+		print(f"❌ Error getting SETU token: {e}")
+		raise
 
 def create_consent(access_token, phone_number, consent_days=365, data_range_from=None, data_range_to=None):
 	"""Create a consent request"""
-	url = "https://fiu-sandbox.setu.co/v2/consents"
+	try:
+		url = "https://fiu-sandbox.setu.co/v2/consents"
 
-	# Calculate consent duration in months (minimum 1 month)
-	consent_months = max(1, consent_days // 30)
-	
-	# Use provided dates or defaults
-	if not data_range_from:
-		data_range_from = "2023-01-01T00:00:00Z"
-	if not data_range_to:
-		data_range_to = "2025-12-31T00:00:00Z"
+		# Calculate consent duration in months (minimum 1 month)
+		consent_months = max(1, consent_days // 30)
+		
+		# Use provided dates or defaults
+		if not data_range_from:
+			data_range_from = "2023-01-01T00:00:00Z"
+		if not data_range_to:
+			data_range_to = "2025-12-31T00:00:00Z"
 
-	payload = {
-		"consentDuration": {
-			"unit": "MONTH",
-			"value": str(consent_months)
-		},
-		"vua": phone_number + "@onemoney",
-		"dataRange": {
-			"from": data_range_from,
-			"to": data_range_to
-		},
-		"consentTypes": ["PROFILE", "SUMMARY", "TRANSACTIONS"],
-		"context": []
-	}
-	headers = {
-		"Authorization": "Bearer " + access_token,
-		"x-product-instance-id": PRODUCT_INSTANCE_ID,
-		"Content-Type": "application/json"
-	}
+		payload = {
+			"consentDuration": {
+				"unit": "MONTH",
+				"value": str(consent_months)
+			},
+			"vua": phone_number + "@onemoney",
+			"dataRange": {
+				"from": data_range_from,
+				"to": data_range_to
+			},
+			"consentTypes": ["PROFILE", "SUMMARY", "TRANSACTIONS"],
+			"context": []
+		}
+		headers = {
+			"Authorization": "Bearer " + access_token,
+			"x-product-instance-id": PRODUCT_INSTANCE_ID,
+			"Content-Type": "application/json"
+		}
 
-	response = requests.request("POST", url, json=payload, headers=headers).json()
-	req_id = response['id']
-	consent_handle = response['url']
-	return req_id, consent_handle
+		print(f"📤 Creating consent with SETU API...")
+		print(f"   VUA: {phone_number}@onemoney")
+		print(f"   Date range: {data_range_from} to {data_range_to}")
+		
+		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		
+		# Log response for debugging
+		print(f"   Response status: {response.status_code}")
+		
+		if response.status_code != 200:
+			error_msg = response.text
+			print(f"❌ SETU API error ({response.status_code}): {error_msg}")
+			raise Exception(f"SETU API error: {error_msg}")
+		
+		data = response.json()
+		
+		if 'id' not in data or 'url' not in data:
+			print(f"❌ Invalid SETU response: {data}")
+			raise Exception("Invalid response from SETU API - missing id or url")
+		
+		req_id = data['id']
+		consent_handle = data['url']
+		
+		print(f"✓ Consent created: {req_id}")
+		return req_id, consent_handle
+		
+	except requests.exceptions.Timeout:
+		print("❌ SETU API timeout during consent creation")
+		raise Exception("SETU API timeout - please try again")
+	except requests.exceptions.RequestException as e:
+		print(f"❌ SETU API request error: {e}")
+		raise Exception(f"SETU API connection error: {str(e)}")
+	except Exception as e:
+		print(f"❌ Error creating consent: {e}")
+		raise
 
 def get_consent_status(access_token, req_id):
 	"""Get consent status"""

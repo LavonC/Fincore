@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 const USE_PRODUCTION = true; // Set to false for local development
 
 // Production URLs (Render.com)
-const PRODUCTION_API_URL = 'https://fincore-authentication.onrender.com';
+const PRODUCTION_API_URL = 'https://fincore-authentication.onrender.com/api';
 const PRODUCTION_VOICE_URL = 'https://fincore-voice-assistant.onrender.com';
 
 // Local Development URLs

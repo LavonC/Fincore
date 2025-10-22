@@ -269,6 +269,23 @@ def createConsent():
 			if not user_email:
 				return jsonify({'error': 'Email is required'}), 400
 			
+			# Convert ISO format to MySQL DATETIME format
+			def iso_to_mysql_datetime(iso_string):
+				"""Convert ISO 8601 format to MySQL DATETIME format"""
+				if not iso_string:
+					return None
+				try:
+					# Parse ISO format: 2023-01-01T00:00:00Z or 2023-01-01T00:00:00.000Z
+					dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
+					# Return MySQL format: YYYY-MM-DD HH:MM:SS
+					return dt.strftime('%Y-%m-%d %H:%M:%S')
+				except:
+					return None
+			
+			# Convert dates for MySQL storage
+			mysql_date_from = iso_to_mysql_datetime(data_range_from) or '2023-01-01 00:00:00'
+			mysql_date_to = iso_to_mysql_datetime(data_range_to) or '2025-12-31 23:59:59'
+			
 			# Get user details from database
 			connection = get_db_connection()
 			if not connection:
@@ -289,16 +306,16 @@ def createConsent():
 			# Get access token
 			access_token = get_token()
 			
-			# Create consent with date parameters
+			# Create consent with date parameters (SETU API expects ISO format)
 			consent_id, consent_url = create_consent(
 				access_token, 
 				phone_number, 
 				consent_days,
-				data_range_from,
-				data_range_to
+				data_range_from or '2023-01-01T00:00:00Z',  # Pass ISO format to SETU API
+				data_range_to or '2025-12-31T23:59:59Z'
 			)
 			
-			# Store consent in database
+			# Store consent in database (MySQL DATETIME format)
 			cursor.execute('''
 				INSERT INTO consents 
 				(user_id, consent_id, consent_handle, status, vua, data_range_from, data_range_to, fi_types)
@@ -309,8 +326,8 @@ def createConsent():
 				consent_url,
 				'PENDING',
 				phone_number + '@onemoney',
-				data_range_from if data_range_from else '2023-01-01T00:00:00Z',
-				data_range_to if data_range_to else '2025-12-31T00:00:00Z',
+				mysql_date_from,  # MySQL DATETIME format
+				mysql_date_to,    # MySQL DATETIME format
 				'DEPOSIT,PROFILE,SUMMARY,TRANSACTIONS'
 			))
 			
@@ -444,32 +461,29 @@ def sessionCheck():
 			data_range_from = consent_data['data_range_from']
 			data_range_to = consent_data['data_range_to']
 			
-			# Convert datetime to ISO format for Setu
-			from datetime import datetime
-			
-			if isinstance(data_range_from, datetime):
-				data_from_iso = data_range_from.strftime('%Y-%m-%dT%H:%M:%SZ')
-			elif isinstance(data_range_from, str):
-				# Already in ISO format or needs conversion
-				if 'T' in data_range_from:
-					data_from_iso = data_range_from.replace(' ', 'T').rstrip('Z') + 'Z'
+			# Convert MySQL DATETIME to ISO format for Setu API
+			def mysql_datetime_to_iso(dt_value):
+				"""Convert MySQL DATETIME to ISO 8601 format for SETU API"""
+				if isinstance(dt_value, datetime):
+					# It's already a datetime object
+					return dt_value.strftime('%Y-%m-%dT%H:%M:%SZ')
+				elif isinstance(dt_value, str):
+					# It's a string, could be MySQL format (YYYY-MM-DD HH:MM:SS) or ISO format
+					if 'T' in dt_value:
+						# Already ISO format, ensure proper Z ending
+						return dt_value.rstrip('Z') + 'Z'
+					else:
+						# MySQL format, convert to ISO
+						try:
+							dt = datetime.strptime(dt_value, '%Y-%m-%d %H:%M:%S')
+							return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+						except:
+							return dt_value
 				else:
-					dt = datetime.strptime(data_range_from, '%Y-%m-%d %H:%M:%S')
-					data_from_iso = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-			else:
-				data_from_iso = "2023-01-01T00:00:00Z"
+					return "2023-01-01T00:00:00Z"
 			
-			if isinstance(data_range_to, datetime):
-				data_to_iso = data_range_to.strftime('%Y-%m-%dT%H:%M:%SZ')
-			elif isinstance(data_range_to, str):
-				# Already in ISO format or needs conversion
-				if 'T' in data_range_to:
-					data_to_iso = data_range_to.replace(' ', 'T').rstrip('Z') + 'Z'
-				else:
-					dt = datetime.strptime(data_range_to, '%Y-%m-%d %H:%M:%S')
-					data_to_iso = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-			else:
-				data_to_iso = "2025-12-31T00:00:00Z"
+			data_from_iso = mysql_datetime_to_iso(data_range_from)
+			data_to_iso = mysql_datetime_to_iso(data_range_to)
 			
 			print(f"Creating session with date range: {data_from_iso} to {data_to_iso}")
 			

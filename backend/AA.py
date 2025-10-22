@@ -879,9 +879,8 @@ def getAccountTransactions():
 def get_token():
 	"""Get access token from Setu"""
 	try:
-		# Use SANDBOX endpoint (matching fiu-sandbox.setu.co used in other functions)
-		# Change to orgservice-prod.setu.co when using production credentials
-		url = "https://fiu-uat.setu.co/v1/users/login"
+		# Use PRODUCTION auth endpoint (this works with sandbox FIU endpoints)
+		url = "https://orgservice-prod.setu.co/v1/users/login"
 
 		payload = {
 			"clientID": CLIENT_ID,

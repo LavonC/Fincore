@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // 🚀 PRODUCTION CONFIGURATION FOR RENDER.COM
 // Switch between local development and production
-const USE_PRODUCTION = true; // Set to false for local development
+const USE_PRODUCTION = false; // Set to false for local development
 
 // =====================================
 // PRODUCTION URLs (Render.com)
@@ -22,12 +22,12 @@ const PRODUCTION_URLS = {
 const TESTING_ON = 'device'; // 'emulator', 'simulator', or 'device'
 
 const SERVER_IPS = {
-  AUTH_IP: '192.168.1.3',      // Port 3000 - server.js
-  CONSENT_IP: '192.168.1.3',   // Port 5000 - AA.py
-  HISTORICAL_IP: '192.168.1.3', // Port 4000 - historicalserver.py
-  DATA_IP: '192.168.1.3',      // Port 6000 - ml.py
-  ADVISOR_IP: '192.168.1.3',   // Port 7000 - advisor.py
-  INSIGHTS_IP: '192.168.1.3',  // Port 8001 - insights.py
+  AUTH_IP: '192.168.1.5',      // Port 3000 - server.js
+  CONSENT_IP: '192.168.1.5',   // Port 5000 - AA.py
+  HISTORICAL_IP: '192.168.1.5', // Port 4000 - historicalserver.py
+  DATA_IP: '192.168.1.5',      // Port 6000 - ml.py
+  ADVISOR_IP: '192.168.1.5',   // Port 7000 - advisor.py
+  INSIGHTS_IP: '192.168.1.5',  // Port 8001 - insights.py
 };
 
 // Function to get base URL for local development

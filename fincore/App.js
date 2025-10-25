@@ -27,14 +27,11 @@ import MainTabNavigator from "./screens/MainTabNavigator";
 import StockHome from "./screens/Stocks/stockhome";
 import RegistrationScreen from "./screens/Stocks/registrationscreen";
 import LoginScreen from "./screens/Stocks/loginscreen";
-<<<<<<< HEAD
 import AddMoneyScreen from "./screens/Stocks/AddMoney";
 import DashboardAnalysis from './screens/Stocks/Dashboardanalysis';
-=======
 import InsightsScreen from './screens/insightsscreen';
 import AdvisorScreen from './screens/advisor';
 import AdvisorChatScreen from './screens/advisorchat';
->>>>>>> 29f5f1d5ce3d7da9306c591ddcd396849977e4b0
 
 const Stack = createNativeStackNavigator();
 

@@ -165,7 +165,7 @@ def init_db():
 # HEALTH CHECK & ROOT ROUTES
 # ==========================================
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'POST'])
 def home():
 	"""Root route for health checks"""
 	return jsonify({
@@ -183,7 +183,7 @@ def home():
 		}
 	}), 200
 
-@app.route('/health', methods=['GET'])
+@app.route('/health', methods=['GET', 'POST'])
 def health():
 	"""Health check endpoint for Render"""
 	try:
@@ -953,7 +953,8 @@ def create_consent(access_token, phone_number, consent_days=365, data_range_from
 		# Log response for debugging
 		print(f"   Response status: {response.status_code}")
 		
-		if response.status_code != 200:
+		# Accept both 200 (OK) and 201 (Created) as success
+		if response.status_code not in [200, 201]:
 			error_msg = response.text
 			print(f"❌ SETU API error ({response.status_code}): {error_msg}")
 			raise Exception(f"SETU API error: {error_msg}")

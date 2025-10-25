@@ -27,8 +27,14 @@ import MainTabNavigator from "./screens/MainTabNavigator";
 import StockHome from "./screens/Stocks/stockhome";
 import RegistrationScreen from "./screens/Stocks/registrationscreen";
 import LoginScreen from "./screens/Stocks/loginscreen";
+<<<<<<< HEAD
 import AddMoneyScreen from "./screens/Stocks/AddMoney";
 import DashboardAnalysis from './screens/Stocks/Dashboardanalysis';
+=======
+import InsightsScreen from './screens/insightsscreen';
+import AdvisorScreen from './screens/advisor';
+import AdvisorChatScreen from './screens/advisorchat';
+>>>>>>> 29f5f1d5ce3d7da9306c591ddcd396849977e4b0
 
 const Stack = createNativeStackNavigator();
 
@@ -36,7 +42,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Explore"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
@@ -86,6 +92,11 @@ export default function App() {
         <Stack.Screen name="Stocks" component={StocksScreen} options={{ headerShown: true, title: 'Stocks' }} />
         <Stack.Screen name="AdvisorConnect" component={AdvisorConnectScreen} options={{ headerShown: true, title: 'Advisor Connect' }} />
         <Stack.Screen name="TaxCenter" component={TaxCenterScreen} options={{ headerShown: true, title: 'Tax Center' }} />
+        
+        {/* New Feature Screens */}
+        <Stack.Screen name="Insights" component={InsightsScreen} />
+        <Stack.Screen name="Advisor" component={AdvisorScreen} />
+        <Stack.Screen name="AdvisorChat" component={AdvisorChatScreen} />
       </Stack.Navigator>
 
       <StatusBar style="auto" />

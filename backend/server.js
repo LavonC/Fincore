@@ -132,7 +132,7 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send Email OTP
+// Send Email OTP with timeout
 async function sendEmailOTP(email, otp) {
   try {
     // If email credentials not configured, just log the OTP (for development)
@@ -159,14 +159,20 @@ async function sendEmailOTP(email, otp) {
       `
     };
 
-    await emailTransporter.sendMail(mailOptions);
+    // Add 15-second timeout for email sending (Render has 30s request timeout)
+    const sendEmailPromise = emailTransporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout')), 15000)
+    );
+
+    await Promise.race([sendEmailPromise, timeoutPromise]);
     console.log(`✓ Email OTP sent to ${email}`);
     return true;
   } catch (error) {
     console.error('✗ Error sending email OTP:', error.message);
-    // Log OTP to console for development
+    // Log OTP to console for development/debugging
     console.log(`📧 EMAIL OTP for ${email}: ${otp}`);
-    return true; // Return true anyway for development
+    return true; // Return true anyway - OTP is stored, user can check logs if needed
   }
 }
 
@@ -234,8 +240,8 @@ app.post('/api/auth/send-otp', async (req, res) => {
     }
 
     // Generate OTPs
-    const emailOTP = generateOTP();
-    const phoneOTP = generateOTP();
+    const emailOTP = '123456'//generateOTP();
+    const phoneOTP = '123456'; //generateOTP(); // For testing, fixed OTP
 
     // Store OTPs with expiration (10 minutes)
     const otpData = {
@@ -246,14 +252,20 @@ app.post('/api/auth/send-otp', async (req, res) => {
     
     otpStore.set(email, otpData);
 
-    // Send OTPs
-    await Promise.all([
-      sendEmailOTP(email, emailOTP),
-      sendPhoneOTP(phone, phoneOTP)
-    ]);
+    // Send phone OTP immediately (fast)
+    const phoneResult = await sendPhoneOTP(phone, phoneOTP);
+    
+    // Send email OTP asynchronously (don't wait - can be slow on Render)
+    // This prevents timeout on free Render instances with slow SMTP
+    sendEmailOTP(email, emailOTP).catch(error => {
+      console.error('✗ Background email send failed:', error.message);
+    });
 
-    console.log(`✓ OTPs sent to ${email} and ${phone}`);
-    res.json({ message: 'OTP sent successfully' });
+    console.log(`✓ OTPs initiated for ${email} and ${phone}`);
+    res.json({ 
+      message: 'OTP sent successfully',
+      note: 'Email may take a few moments to arrive'
+    });
   } catch (error) {
     console.error('✗ Send OTP error:', error.message);
     res.status(500).json({ error: 'Error sending OTP' });
@@ -435,7 +447,7 @@ const startServer = async () => {
 
     // Sync database (creates tables if they don't exist)
     await sequelize.sync({ 
-      alter: process.env.NODE_ENV === 'development',
+      alter: false, // Disabled to prevent "too many keys" error
       force: false // Change to true to drop and recreate tables (USE CAREFULLY!)
     });
     console.log('✓ Database synchronized successfully');

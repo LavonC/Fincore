@@ -39,10 +39,10 @@ print("Using Token Secret:", token_secret)
 
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',  
-    'database': 'stock_trading_app'
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', ''),  
+    'database': os.getenv('DB_NAME', 'stock_trading_app')
 }
 
 

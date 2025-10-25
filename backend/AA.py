@@ -1,8 +1,6 @@
-CLIENT_ID = "351a73a0-153c-4dc0-9de2-fa01ce842a41"
-CLIENT_SECRET = "nA4LJrbWBnDoZS3jYtRUP2pkxkafQjP1"
-PRODUCT_INSTANCE_ID = "9345cc4b-3ca5-4051-af5c-e2b618dcfcfe"
 # ngrok http 5000 --url=helpful-vastly-shark.ngrok-free.app 
 
+import sys
 import requests
 from flask import Flask, request, abort, jsonify
 from flask_cors import CORS
@@ -10,12 +8,44 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
 import os
+import traceback
 from dotenv import load_dotenv
+
+# Force stdout/stderr to flush immediately (critical for Render logs)
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 load_dotenv()
 
+# SETU API Credentials (use environment variables for production)
+CLIENT_ID = os.getenv('SETU_CLIENT_ID', "351a73a0-153c-4dc0-9de2-fa01ce842a41")
+CLIENT_SECRET = os.getenv('SETU_CLIENT_SECRET', "nA4LJrbWBnDoZS3jYtRUP2pkxkafQjP1")
+PRODUCT_INSTANCE_ID = os.getenv('SETU_PRODUCT_INSTANCE_ID', "9345cc4b-3ca5-4051-af5c-e2b618dcfcfe")
+
+print("=" * 80, flush=True)
+print("🚀 FINCORE AA SERVICE STARTING", flush=True)
+print(f"   SETU Client ID: {CLIENT_ID[:20]}...", flush=True)
+print(f"   Database Host: {os.getenv('DB_HOST', 'localhost')}", flush=True)
+print("=" * 80, flush=True)
+
 app = Flask(__name__)
 CORS(app)
+
+# Global error handler to catch ALL exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+	print("=" * 80, flush=True)
+	print("🔴 UNHANDLED EXCEPTION", flush=True)
+	print("=" * 80, flush=True)
+	print(f"Exception type: {type(e).__name__}", flush=True)
+	print(f"Exception message: {str(e)}", flush=True)
+	print(f"Traceback:\n{traceback.format_exc()}", flush=True)
+	print("=" * 80, flush=True)
+	return jsonify({
+		'error': 'Internal server error',
+		'message': str(e),
+		'type': type(e).__name__
+	}), 500
 
 # Database configuration
 DB_CONFIG = {
@@ -130,6 +160,58 @@ def init_db():
     finally:
         cursor.close()
         connection.close()
+
+# ==========================================
+# HEALTH CHECK & ROOT ROUTES
+# ==========================================
+
+@app.route('/', methods=['GET'])
+def home():
+	"""Root route for health checks"""
+	return jsonify({
+		'status': 'online',
+		'service': 'FinCore Account Aggregator API',
+		'version': '1.0.0',
+		'endpoints': {
+			'webhook': '/webhook',
+			'createConsent': '/createConsent',
+			'checkUserConsent': '/checkUserConsent',
+			'consentCheck': '/consentCheck',
+			'sessionCheck': '/sessionCheck',
+			'getTransactions': '/getTransactions',
+			'getUserAccounts': '/getUserAccounts'
+		}
+	}), 200
+
+@app.route('/health', methods=['GET'])
+def health():
+	"""Health check endpoint for Render"""
+	try:
+		# Check database connection
+		connection = get_db_connection()
+		if connection:
+			connection.close()
+			return jsonify({
+				'status': 'healthy',
+				'database': 'connected',
+				'timestamp': datetime.now().isoformat()
+			}), 200
+		else:
+			return jsonify({
+				'status': 'unhealthy',
+				'database': 'disconnected',
+				'timestamp': datetime.now().isoformat()
+			}), 500
+	except Exception as e:
+		return jsonify({
+			'status': 'unhealthy',
+			'error': str(e),
+			'timestamp': datetime.now().isoformat()
+		}), 500
+
+# ==========================================
+# WEBHOOK ROUTES
+# ==========================================
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -259,19 +341,115 @@ def handle_session_notification(data):
 @app.route('/createConsent', methods=['POST'])
 def createConsent():
 	"""Create a new consent for a user"""
+	print("=" * 80, flush=True)
+	print("🔵 CREATE CONSENT ENDPOINT HIT", flush=True)
+	print("=" * 80, flush=True)
+	
 	if request.method == 'POST':
 		try:
+			print("📦 Raw request data:", request.get_data(), flush=True)
+			print("📦 Request JSON:", request.json, flush=True)
+			
 			user_email = request.json.get('email')
 			consent_days = request.json.get('consentDays', 365)  # Default 365 days
 			data_range_from = request.json.get('dataRangeFrom')  # ISO format from frontend
 			data_range_to = request.json.get('dataRangeTo')  # ISO format from frontend
 			
+			print(f"📝 Extracted values:")
+			print(f"   Email: {user_email}")
+			print(f"   Consent days: {consent_days}")
+			print(f"   Date range from: {data_range_from}")
+			print(f"   Date range to: {data_range_to}")
+			
 			if not user_email:
+				print("❌ Email is required")
 				return jsonify({'error': 'Email is required'}), 400
+			
+			print(f"📝 Creating consent for: {user_email}")
+			
+			# Convert ISO format to MySQL DATETIME format
+			def iso_to_mysql_datetime(iso_string):
+				"""
+				Convert ISO 8601 format to MySQL DATETIME format
+				Input: YYYY-MM-DDTHH:mm:ss.mmmZ (SETU format)
+				Output: YYYY-MM-DD HH:MM:SS (MySQL format)
+				"""
+				if not iso_string:
+					print("⚠️  No datetime string provided")
+					return None
+				try:
+					print(f"   Converting: {iso_string}")
+					# Remove 'Z' suffix and parse
+					# Handle both formats: 2023-01-01T00:00:00Z and 2023-01-01T00:00:00.000Z
+					iso_clean = iso_string.replace('Z', '').replace('T', ' ')
+					
+					# If has milliseconds, remove them (MySQL DATETIME doesn't need them)
+					if '.' in iso_clean:
+						iso_clean = iso_clean.split('.')[0]
+					
+					# Validate format
+					datetime.strptime(iso_clean, '%Y-%m-%d %H:%M:%S')
+					
+					print(f"   Result: {iso_clean}")
+					return iso_clean
+					
+				except Exception as e:
+					print(f"❌ Error converting datetime: {iso_string} - {e}")
+					print(f"   Traceback: {traceback.format_exc()}")
+					return None
+			
+			def ensure_setu_format(iso_string):
+				"""
+				Ensure datetime is in SETU format: YYYY-MM-DDTHH:mm:ss.mmmZ
+				"""
+				if not iso_string:
+					return None
+				try:
+					# If already has milliseconds (any digits) and Z, return as is
+					if 'T' in iso_string and '.' in iso_string and 'Z' in iso_string:
+						# Already in correct format like 2025-10-22T15:43:43.391Z
+						return iso_string
+					
+					# If has Z but no milliseconds, add .000
+					if 'Z' in iso_string and '.' not in iso_string:
+						# 2025-10-22T15:43:00Z → 2025-10-22T15:43:00.000Z
+						return iso_string.replace('Z', '.000Z')
+					
+					# If has T but no Z, add .000Z
+					if 'T' in iso_string and 'Z' not in iso_string:
+						return iso_string + '.000Z'
+					
+					# Convert MySQL format to SETU format
+					if ' ' in iso_string:
+						return iso_string.replace(' ', 'T') + '.000Z'
+					
+					# Fallback
+					return iso_string
+						
+				except Exception as e:
+					print(f"❌ Error formatting for SETU: {iso_string} - {e}", flush=True)
+					return iso_string
+			
+			# Convert dates for MySQL storage
+			print("🔄 Converting dates for MySQL storage...")
+			mysql_date_from = iso_to_mysql_datetime(data_range_from) or '2023-01-01 00:00:00'
+			mysql_date_to = iso_to_mysql_datetime(data_range_to) or '2025-12-31 23:59:59'
+			
+			print(f"   MySQL from: {mysql_date_from}")
+			print(f"   MySQL to: {mysql_date_to}")
+			
+			# Ensure SETU format for API calls
+			print("🔄 Ensuring SETU format for API...")
+			setu_date_from = ensure_setu_format(data_range_from) or '2023-01-01T00:00:00.000Z'
+			setu_date_to = ensure_setu_format(data_range_to) or '2025-12-31T23:59:59.000Z'
+			
+			print(f"   SETU from: {setu_date_from}")
+			print(f"   SETU to: {setu_date_to}")
 			
 			# Get user details from database
 			connection = get_db_connection()
 			if not connection:
+				print("❌ Database connection failed")
 				return jsonify({'error': 'Database connection failed'}), 500
 			
 			cursor = connection.cursor(dictionary=True)
@@ -279,6 +457,7 @@ def createConsent():
 			user = cursor.fetchone()
 			
 			if not user:
+				print(f"❌ User not found: {user_email}")
 				cursor.close()
 				connection.close()
 				return jsonify({'error': 'User not found'}), 404
@@ -286,19 +465,26 @@ def createConsent():
 			user_id = user['id']
 			phone_number = user['phone']
 			
+			print(f"✓ User found - ID: {user_id}, Phone: {phone_number}")
+			
 			# Get access token
+			print("🔑 Getting SETU access token...")
 			access_token = get_token()
 			
-			# Create consent with date parameters
+			# Create consent with date parameters (SETU API expects YYYY-MM-DDTHH:mm:ss.mmmZ format)
+			print("📤 Creating consent with SETU...")
 			consent_id, consent_url = create_consent(
 				access_token, 
 				phone_number, 
 				consent_days,
-				data_range_from,
-				data_range_to
+				setu_date_from,  # SETU format with milliseconds
+				setu_date_to
 			)
 			
-			# Store consent in database
+			print(f"✓ Consent created - ID: {consent_id}")
+			print(f"💾 Storing consent in database...")
+			
+			# Store consent in database (MySQL DATETIME format)
 			cursor.execute('''
 				INSERT INTO consents 
 				(user_id, consent_id, consent_handle, status, vua, data_range_from, data_range_to, fi_types)
@@ -309,14 +495,16 @@ def createConsent():
 				consent_url,
 				'PENDING',
 				phone_number + '@onemoney',
-				data_range_from if data_range_from else '2023-01-01T00:00:00Z',
-				data_range_to if data_range_to else '2025-12-31T00:00:00Z',
+				mysql_date_from,  # MySQL DATETIME format
+				mysql_date_to,    # MySQL DATETIME format
 				'DEPOSIT,PROFILE,SUMMARY,TRANSACTIONS'
 			))
 			
 			connection.commit()
 			cursor.close()
 			connection.close()
+			
+			print(f"✓ Consent stored successfully")
 			
 			return jsonify({
 				'success': True,
@@ -325,8 +513,19 @@ def createConsent():
 			}), 200
 			
 		except Exception as e:
-			print(f"Error creating consent: {e}")
-			return jsonify({'error': str(e)}), 500
+			error_msg = str(e)
+			error_trace = traceback.format_exc()
+			
+			print(f"❌ Error creating consent: {error_msg}")
+			print(f"📋 Full traceback:\n{error_trace}")
+			
+			# Return more specific error message
+			if "Database" in error_msg or "MySQL" in error_msg:
+				return jsonify({'error': 'Database error: ' + error_msg}), 500
+			elif "SETU" in error_msg or "API" in error_msg:
+				return jsonify({'error': 'API error: ' + error_msg}), 500
+			else:
+				return jsonify({'error': error_msg}), 500
 	else:
 		return jsonify({'error': 'Method not allowed'}), 400
 
@@ -444,32 +643,29 @@ def sessionCheck():
 			data_range_from = consent_data['data_range_from']
 			data_range_to = consent_data['data_range_to']
 			
-			# Convert datetime to ISO format for Setu
-			from datetime import datetime
-			
-			if isinstance(data_range_from, datetime):
-				data_from_iso = data_range_from.strftime('%Y-%m-%dT%H:%M:%SZ')
-			elif isinstance(data_range_from, str):
-				# Already in ISO format or needs conversion
-				if 'T' in data_range_from:
-					data_from_iso = data_range_from.replace(' ', 'T').rstrip('Z') + 'Z'
+			# Convert MySQL DATETIME to ISO format for Setu API
+			def mysql_datetime_to_iso(dt_value):
+				"""Convert MySQL DATETIME to ISO 8601 format for SETU API"""
+				if isinstance(dt_value, datetime):
+					# It's already a datetime object
+					return dt_value.strftime('%Y-%m-%dT%H:%M:%SZ')
+				elif isinstance(dt_value, str):
+					# It's a string, could be MySQL format (YYYY-MM-DD HH:MM:SS) or ISO format
+					if 'T' in dt_value:
+						# Already ISO format, ensure proper Z ending
+						return dt_value.rstrip('Z') + 'Z'
+					else:
+						# MySQL format, convert to ISO
+						try:
+							dt = datetime.strptime(dt_value, '%Y-%m-%d %H:%M:%S')
+							return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+						except:
+							return dt_value
 				else:
-					dt = datetime.strptime(data_range_from, '%Y-%m-%d %H:%M:%S')
-					data_from_iso = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-			else:
-				data_from_iso = "2023-01-01T00:00:00Z"
+					return "2023-01-01T00:00:00Z"
 			
-			if isinstance(data_range_to, datetime):
-				data_to_iso = data_range_to.strftime('%Y-%m-%dT%H:%M:%SZ')
-			elif isinstance(data_range_to, str):
-				# Already in ISO format or needs conversion
-				if 'T' in data_range_to:
-					data_to_iso = data_range_to.replace(' ', 'T').rstrip('Z') + 'Z'
-				else:
-					dt = datetime.strptime(data_range_to, '%Y-%m-%d %H:%M:%S')
-					data_to_iso = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-			else:
-				data_to_iso = "2025-12-31T00:00:00Z"
+			data_from_iso = mysql_datetime_to_iso(data_range_from)
+			data_to_iso = mysql_datetime_to_iso(data_range_to)
 			
 			print(f"Creating session with date range: {data_from_iso} to {data_to_iso}")
 			
@@ -645,12 +841,11 @@ def getAccountTransactions():
 			
 			cursor = connection.cursor(dictionary=True)
 			
-			# Get transactions
+			# Get ALL transactions (removed LIMIT 100)
 			cursor.execute('''
 				SELECT * FROM transactions
 				WHERE bank_account_id = %s
 				ORDER BY transaction_timestamp DESC
-				LIMIT 100
 			''', (account_id,))
 			
 			transactions = cursor.fetchall()
@@ -695,46 +890,95 @@ def get_token():
 		"Content-Type": "application/json"
 	}
 
-	response = requests.request("POST", url, json=payload, headers=headers).json()
-	access_token = response['access_token']
-	return access_token
+	print(f"🔑 Requesting SETU token from {url}...", flush=True)
+	print(f"   Client ID: {CLIENT_ID[:20]}...", flush=True)
+	
+	try:
+		response = requests.request("POST", url, json=payload, headers=headers)
+		print(f"   Response Status: {response.status_code}", flush=True)
+		print(f"   Response Body: {response.text[:500]}", flush=True)
+		
+		if response.status_code == 403:
+			print("❌ 403 Forbidden - Render's IP might need whitelisting in SETU dashboard", flush=True)
+			print(f"   This is a SETU/AWS load balancer blocking the request", flush=True)
+			raise Exception("SETU API blocked request (403) - Check IP whitelisting in SETU dashboard")
+		
+		data = response.json()
+		access_token = data['access_token']
+		print(f"✓ SETU access token obtained", flush=True)
+		return access_token
+	except Exception as e:
+		print(f"❌ Error getting SETU token: {e}", flush=True)
+		raise
 
 def create_consent(access_token, phone_number, consent_days=365, data_range_from=None, data_range_to=None):
 	"""Create a consent request"""
-	url = "https://fiu-sandbox.setu.co/v2/consents"
+	try:
+		url = "https://fiu-sandbox.setu.co/v2/consents"
 
-	# Calculate consent duration in months (minimum 1 month)
-	consent_months = max(1, consent_days // 30)
-	
-	# Use provided dates or defaults
-	if not data_range_from:
-		data_range_from = "2023-01-01T00:00:00Z"
-	if not data_range_to:
-		data_range_to = "2025-12-31T00:00:00Z"
+		# Calculate consent duration in months (minimum 1 month)
+		consent_months = max(1, consent_days // 30)
+		
+		# Use provided dates or defaults
+		if not data_range_from:
+			data_range_from = "2023-01-01T00:00:00Z"
+		if not data_range_to:
+			data_range_to = "2025-12-31T00:00:00Z"
 
-	payload = {
-		"consentDuration": {
-			"unit": "MONTH",
-			"value": str(consent_months)
-		},
-		"vua": phone_number + "@onemoney",
-		"dataRange": {
-			"from": data_range_from,
-			"to": data_range_to
-		},
-		"consentTypes": ["PROFILE", "SUMMARY", "TRANSACTIONS"],
-		"context": []
-	}
-	headers = {
-		"Authorization": "Bearer " + access_token,
-		"x-product-instance-id": PRODUCT_INSTANCE_ID,
-		"Content-Type": "application/json"
-	}
+		payload = {
+			"consentDuration": {
+				"unit": "MONTH",
+				"value": str(consent_months)
+			},
+			"vua": phone_number + "@onemoney",
+			"dataRange": {
+				"from": data_range_from,
+				"to": data_range_to
+			},
+			"consentTypes": ["PROFILE", "SUMMARY", "TRANSACTIONS"],
+			"context": []
+		}
+		headers = {
+			"Authorization": "Bearer " + access_token,
+			"x-product-instance-id": PRODUCT_INSTANCE_ID,
+			"Content-Type": "application/json"
+		}
 
-	response = requests.request("POST", url, json=payload, headers=headers).json()
-	req_id = response['id']
-	consent_handle = response['url']
-	return req_id, consent_handle
+		print(f"📤 Creating consent with SETU API...")
+		print(f"   VUA: {phone_number}@onemoney")
+		print(f"   Date range: {data_range_from} to {data_range_to}")
+		
+		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		
+		# Log response for debugging
+		print(f"   Response status: {response.status_code}")
+		
+		if response.status_code != 200:
+			error_msg = response.text
+			print(f"❌ SETU API error ({response.status_code}): {error_msg}")
+			raise Exception(f"SETU API error: {error_msg}")
+		
+		data = response.json()
+		
+		if 'id' not in data or 'url' not in data:
+			print(f"❌ Invalid SETU response: {data}")
+			raise Exception("Invalid response from SETU API - missing id or url")
+		
+		req_id = data['id']
+		consent_handle = data['url']
+		
+		print(f"✓ Consent created: {req_id}")
+		return req_id, consent_handle
+		
+	except requests.exceptions.Timeout:
+		print("❌ SETU API timeout during consent creation")
+		raise Exception("SETU API timeout - please try again")
+	except requests.exceptions.RequestException as e:
+		print(f"❌ SETU API request error: {e}")
+		raise Exception(f"SETU API connection error: {str(e)}")
+	except Exception as e:
+		print(f"❌ Error creating consent: {e}")
+		raise
 
 def get_consent_status(access_token, req_id):
 	"""Get consent status"""

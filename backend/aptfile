@@ -1,0 +1,8 @@
+# System packages required for Voice Assistant on Render.com
+# This file is automatically read by Render during deployment
+
+# Required for pydub (audio processing)
+ffmpeg
+
+# Alternative if ffmpeg doesn't work:
+# libavcodec-extra

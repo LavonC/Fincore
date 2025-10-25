@@ -3,3 +3,13 @@ flask-cors==4.0.0
 requests==2.31.0
 mysql-connector-python==8.2.0
 python-dotenv==1.0.0
+google-generativeai==0.3.2
+gTTS==2.4.0
+pydub==0.25.1
+
+# Audio transcription options (install at least one):
+# Option 1: Vosk (FREE, offline, no API key) - Recommended for privacy
+vosk==0.3.45
+
+# Option 2: AssemblyAI (FREE tier: 5 hours/month)
+assemblyai==0.17.0

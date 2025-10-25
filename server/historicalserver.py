@@ -660,8 +660,8 @@ def get_previous_close():
 @app.route("/get_csv")
 def get_csv():
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    file_path = os.path.join(base_dir, "fincore", "assets", "EQUITY_L.csv")
-    return send_file(file_path, mimetype="text/csv", as_attachment=True, download_name="EQUITY_L.csv")
+    file_path = os.path.join(base_dir, "fincore", "assets", "companies_with_tokens.csv")
+    return send_file(file_path, mimetype="text/csv", as_attachment=True, download_name="companies_with_tokens.csv")
 
 
 

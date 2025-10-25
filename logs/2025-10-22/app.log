@@ -1,0 +1,2 @@
+[E 251022 19:44:56 ml:828] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251022 19:45:10 ml:828] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''

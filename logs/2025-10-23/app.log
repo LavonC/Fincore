@@ -1,0 +1,18 @@
+[E 251023 09:56:27 ml:828] Error in get_historical_data: Couldn't parse the JSON response received from the server: b''
+[E 251023 10:01:15 ml:194] Login failed with error: Couldn't parse the JSON response received from the server: b'Access denied because of exceeding access rate'
+[E 251023 10:01:15 ml:1059] Application failed to start due to login error.
+[E 251023 10:18:59 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:19:08 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:19:15 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:19:17 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:20:45 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:28:58 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:35:04 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:36:23 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:38:21 ml:710] Error in portfolio_summary: 'NoneType' object is not subscriptable
+[E 251023 10:46:10 ml:183] Login failed with error: Couldn't parse the JSON response received from the server: b'Access denied because of exceeding access rate'
+[E 251023 10:46:10 ml:1162] Application failed to start due to login error.
+[E 251023 10:50:48 ml:183] Login failed with error: Couldn't parse the JSON response received from the server: b'Access denied because of exceeding access rate'
+[E 251023 10:50:48 ml:1162] Application failed to start due to login error.
+[E 251023 11:11:22 tempCodeRunnerFile:383] Login failed with error: Couldn't parse the JSON response received from the server: b'Access denied because of exceeding access rate'
+[E 251023 11:11:22 tempCodeRunnerFile:846] Application failed to start due to login error.

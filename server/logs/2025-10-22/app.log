@@ -1,0 +1,2 @@
+[E 251022 20:18:25 historicalserver:383] Login failed with error: Couldn't parse the JSON response received from the server: b'Access denied because of exceeding access rate'
+[E 251022 20:18:25 historicalserver:846] Application failed to start due to login error.

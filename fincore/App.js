@@ -27,6 +27,8 @@ import MainTabNavigator from "./screens/MainTabNavigator";
 import StockHome from "./screens/Stocks/stockhome";
 import RegistrationScreen from "./screens/Stocks/registrationscreen";
 import LoginScreen from "./screens/Stocks/loginscreen";
+import AddMoneyScreen from "./screens/Stocks/AddMoney";
+import DashboardAnalysis from './screens/Stocks/Dashboardanalysis';
 
 const Stack = createNativeStackNavigator();
 
@@ -45,7 +47,8 @@ export default function App() {
         <Stack.Screen name="RegistrationScreen" component={RegistrationScreen} />
         <Stack.Screen name="Login" component={LoginPage} />
         <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen 
+        <Stack.Screen name="AddMoney" component={AddMoneyScreen} />
+                <Stack.Screen 
           name="OTPVerification" 
           component={OTPVerificationScreen}
           options={{
@@ -57,6 +60,7 @@ export default function App() {
         {/* App Open / Charts */}
         <Stack.Screen name="AppOpen" component={appopen} />
         <Stack.Screen name="CandleCloseChart" component={CandleCloseChart} />
+        <Stack.Screen name="DashboardAnalysis" component={DashboardAnalysis} />
 
         {/* Main App / Tabs */}
         <Stack.Screen name="MainApp" component={MainTabNavigator} />
